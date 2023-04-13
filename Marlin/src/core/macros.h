@@ -261,6 +261,9 @@
 #define FMOD(x, y)  fmodf(x, y)
 #define HYPOT(x,y)  SQRT(HYPOT2(x,y))
 
+#define EPSILON       (0.000001f)
+#define IS_ZERO(x)    ((ABS(x) < EPSILON))
+
 #ifdef TARGET_LPC1768
   #define I2C_ADDRESS(A) ((A) << 1)
 #else
