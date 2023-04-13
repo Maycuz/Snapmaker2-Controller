@@ -5,7 +5,7 @@
 #include "shaper_type_define.h"
 
 
-#define MOVE_SIZE                   (128)
+#define MOVE_SIZE                   (64)
 #define MOVE_MOD(n)                 ((n + MOVE_SIZE)%MOVE_SIZE)
 #define RB_IS_FULL(h, t, s)         (((h+1)%s) == t)
 #define RB_IS_EMPTY(h, t)           ((h) == (t))
