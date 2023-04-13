@@ -7,7 +7,7 @@
 #include "CircularBuffer.h"
 
 
-// #define SHAPER_LOG_ENABLE
+#define SHAPER_LOG_ENABLE
 // #define LOG_MOTION_INFO
 #define EMPTY_MOVE_TIME               (100 * STEPPER_TIMER_TICKS_PER_MS)
 #define SHAPER_VIBRATION_REDUCTION    (20)

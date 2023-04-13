@@ -1213,8 +1213,6 @@ void Planner::shaped_loop() {
   static block_t *bt = nullptr;
   uint8_t block_num = movesplanned();
 
-  LOG_I("pt run.\n");
-
   if (axis_mng.reqAbort) {
     clear_block_buffer();
     delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;

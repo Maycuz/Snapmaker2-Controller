@@ -410,7 +410,7 @@ bool AxisInputShaper::moveShaperWindowToNext() {
     do {
       if (!mq->isBetween(cls_p_m_idx)) {
         #ifdef SHAPER_LOG_ENABLE
-        LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
+        // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
         #endif
         return false;
       }
@@ -425,7 +425,7 @@ bool AxisInputShaper::moveShaperWindowToNext() {
   else {
     if (!mq->isBetween(cls_p_m_idx)) {
       #ifdef SHAPER_LOG_ENABLE
-      LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
+      // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
       #endif
       return false;
     }
