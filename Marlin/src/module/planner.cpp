@@ -67,6 +67,8 @@
 #include "motion.h"
 #include "temperature.h"
 #include "../core/language.h"
+#include "../core/minmax.h"
+
 #include "../gcode/parser.h"
 
 #include "../Marlin.h"
@@ -119,7 +121,7 @@ laser_state_t Planner::laser_inline = {0};            // Planner laser power for
 uint32_t Planner::max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2
 
 float Planner::steps_to_mm[X_TO_EN];           // (mm) Millimeters per step
-bool Planner::is_user_set_lead; 
+bool Planner::is_user_set_lead;
 #if ENABLED(JUNCTION_DEVIATION)
   float Planner::junction_deviation_mm;       // (mm) M205 J
   #if ENABLED(LIN_ADVANCE)
@@ -705,8 +707,18 @@ void Planner::init() {
  * is not and will not use the block while we modify it, so it is safe to
  * alter its values.
  */
-void Planner::calculate_trapezoid_for_block(block_t* const block, const float &entry_factor, const float &exit_factor) {
+// void Planner::calculate_trapezoid_for_block(block_t* const block, const float &entry_factor, const float &exit_factor) {
+void Planner::calculate_trapezoid_for_block(block_t * const block, const float &entry_speed, const float &exit_speed) {
+  block->initial_speed = entry_speed;
+  block->final_speed = exit_speed;
 
+  float entry_speed_sqr = sq(entry_speed);
+  float exit_speed_sqr = sq(exit_speed);
+
+  float smoothed_cruise_speed_sqr = MAX(entry_speed_sqr, exit_speed_sqr, (entry_speed_sqr + exit_speed_sqr + 2 * block->acceleration_to_deceleration * block->millimeters) * 0.5);
+  block->cruise_speed = SQRT(MIN(block->nominal_speed_sqr, smoothed_cruise_speed_sqr));
+
+  #if 0
   uint32_t initial_rate = CEIL(block->nominal_rate * entry_factor),
            final_rate = CEIL(block->nominal_rate * exit_factor); // (steps per second)
 
@@ -772,6 +784,7 @@ void Planner::calculate_trapezoid_for_block(block_t* const block, const float &e
    * Laser trapezoid: set entry power
    */
   block->laser.power_entry = block->laser.power * entry_factor;
+  #endif
 }
 
 /*                            PLANNER SPEED DEFINITION
@@ -1050,7 +1063,8 @@ void Planner::recalculate_trapezoids() {
 
   // Go from the tail (currently executed block) to the first block, without including it)
   block_t *current = NULL, *next = NULL;
-  float current_entry_speed = 0.0, next_entry_speed = 0.0;
+  // float current_entry_speed = 0.0, next_entry_speed = 0.0;
+  float current_entry_speed = float(MINIMUM_PLANNER_SPEED), next_entry_speed = float(MINIMUM_PLANNER_SPEED);
   while (block_index != head_block_index) {
 
     next = &block_buffer[block_index];
@@ -1075,9 +1089,12 @@ void Planner::recalculate_trapezoids() {
             // Block is not BUSY, we won the race against the Stepper ISR:
 
             // NOTE: Entry and exit factors always > 0 by all previous logic operations.
-            const float current_nominal_speed = SQRT(current->nominal_speed_sqr),
-                        nomr = 1.0f / current_nominal_speed;
-            calculate_trapezoid_for_block(current, current_entry_speed * nomr, next_entry_speed * nomr);
+            // const float current_nominal_speed = SQRT(current->nominal_speed_sqr),
+            //            nomr = 1.0f / current_nominal_speed;
+            // calculate_trapezoid_for_block(current, current_entry_speed * nomr, next_entry_speed * nomr);
+            calculate_trapezoid_for_block(current, current_entry_speed, next_entry_speed);
+
+			#if 0
             #if ENABLED(LIN_ADVANCE)
               if (current->use_advance_lead) {
                 const float comp = current->e_D_ratio * extruder_advance_K[active_extruder] * settings.axis_steps_per_mm[E_AXIS];
@@ -1085,6 +1102,7 @@ void Planner::recalculate_trapezoids() {
                 current->final_adv_steps = next_entry_speed * comp;
               }
             #endif
+			#endif
           }
 
           // Reset current only to ensure next trapezoid is computed - The
@@ -1114,16 +1132,20 @@ void Planner::recalculate_trapezoids() {
     if (!stepper.is_block_busy(current)) {
       // Block is not BUSY, we won the race against the Stepper ISR:
 
-      const float next_nominal_speed = SQRT(next->nominal_speed_sqr),
-                  nomr = 1.0f / next_nominal_speed;
-      calculate_trapezoid_for_block(next, next_entry_speed * nomr, float(min_planner_speed) * nomr);
-      #if ENABLED(LIN_ADVANCE)
+      // const float next_nominal_speed = SQRT(next->nominal_speed_sqr),
+      //            nomr = 1.0f / next_nominal_speed;
+      // calculate_trapezoid_for_block(next, next_entry_speed * nomr, float(min_planner_speed) * nomr);
+	    calculate_trapezoid_for_block(next, next_entry_speed, float(MINIMUM_PLANNER_SPEED));
+
+	  #if 0
+	  #if ENABLED(LIN_ADVANCE)
         if (next->use_advance_lead) {
           const float comp = next->e_D_ratio * extruder_advance_K[active_extruder] * settings.axis_steps_per_mm[E_AXIS];
           next->max_adv_steps = next_nominal_speed * comp;
           next->final_adv_steps = (min_planner_speed) * comp;
         }
       #endif
+	  #endif
     }
 
     // Reset next only to ensure its trapezoid is computed - The stepper is free to use

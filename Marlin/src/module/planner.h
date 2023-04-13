@@ -102,7 +102,12 @@ typedef struct block_t {
         entry_speed_sqr,                    // Entry speed at previous-current junction in (mm/sec)^2
         max_entry_speed_sqr,                // Maximum allowable junction entry speed in (mm/sec)^2
         millimeters,                        // The total travel of this block in mm
-        acceleration;                       // acceleration mm/sec^2
+        acceleration,                       // acceleration mm/sec^2
+        acceleration_to_deceleration;
+
+  float cruise_speed;
+  float initial_speed;
+  float final_speed;
 
   union {
     // Data used by all move blocks
@@ -156,6 +161,8 @@ typedef struct block_t {
            initial_rate,                    // The jerk-adjusted step rate at start of block
            final_rate,                      // The minimal rate at exit
            acceleration_steps_per_s2;       // acceleration steps/sec^2
+
+  float axis_r[NUM_AXIS];
 
   #if FAN_COUNT > 0
     uint8_t fan_speed[FAN_COUNT];
@@ -868,14 +875,6 @@ FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != bloc
       }
     #endif
 
-  private:
-
-    /**
-     * Get the index of the next / previous block in the ring buffer
-     */
-    static constexpr uint8_t next_block_index(const uint8_t block_index) { return BLOCK_MOD(block_index + 1); }
-    static constexpr uint8_t prev_block_index(const uint8_t block_index) { return BLOCK_MOD(block_index - 1); }
-
     /**
      * Calculate the distance (not time) it takes to accelerate
      * from initial_rate to target_rate using the given acceleration:
@@ -898,6 +897,14 @@ FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != bloc
       return (accel * 2 * distance - sq(initial_rate) + sq(final_rate)) / (accel * 4);
     }
 
+  private:
+
+    /**
+     * Get the index of the next / previous block in the ring buffer
+     */
+    static constexpr uint8_t next_block_index(const uint8_t block_index) { return BLOCK_MOD(block_index + 1); }
+    static constexpr uint8_t prev_block_index(const uint8_t block_index) { return BLOCK_MOD(block_index - 1); }
+
     /**
      * Calculate the maximum allowable speed squared at this point, in order
      * to reach 'target_velocity_sqr' using 'acceleration' within a given
@@ -916,7 +923,8 @@ FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != bloc
       }
     #endif
 
-    static void calculate_trapezoid_for_block(block_t* const block, const float &entry_factor, const float &exit_factor);
+    // static void calculate_trapezoid_for_block(block_t* const block, const float &entry_factor, const float &exit_factor);
+    static void calculate_trapezoid_for_block(block_t * const block, const float &entry_speed, const float &exit_speed);
 
     static void reverse_pass_kernel(block_t* const current, const block_t * const next);
     static void forward_pass_kernel(const block_t * const previous, block_t* const current, uint8_t block_index);

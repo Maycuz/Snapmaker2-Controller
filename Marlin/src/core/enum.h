@@ -38,7 +38,6 @@ enum AxisEnum : unsigned char {
   NO_AXIS   = 0xFF
 };
 
-#define AXIS_SIZE   (5)     // X Y Z E B
 
 #if HAS_DRIVER(L6470)
   enum L6470_driver_enum : unsigned char { X, Y, Z, X2, Y2, Z2, Z3, E0, E1, E2, E3, E4, E5 };
