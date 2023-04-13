@@ -75,6 +75,9 @@
 
 #include "../../../snapmaker/src/snapmaker.h"
 
+#include "shaper/TimeGenFunc.h"
+#include "shaper/AxisInputShaper.h"
+
 #if HAS_LEVELING
   #include "../feature/bedlevel/bedlevel.h"
 #endif
@@ -113,6 +116,8 @@ volatile uint8_t Planner::block_buffer_head,    // Index of the next block to be
                  Planner::block_buffer_tail;    // Index of the busy block, if any
 uint16_t Planner::cleaning_buffer_counter;      // A counter to disable queuing of blocks
 uint8_t Planner::delay_before_delivering;       // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
+bool Planner::step_generating = false;
+
 
 planner_settings_t Planner::settings;           // Initialized by settings.load()
 
@@ -1165,6 +1170,152 @@ void Planner::recalculate() {
   recalculate_trapezoids();
 }
 
+
+
+bool Planner::has_motion_queue() {
+
+  // First update move
+  axis_mng.updateOldestPluesTick();
+  moveQueue.moveTailForward(axis_mng.oldest_plues_tick);
+
+  if (moveQueue.haveMotion() || axis_mng.tgfValid() || steps_seq.count()) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+bool Planner::genStep() {
+  bool have_gen = false;
+  StepInfo step_info;
+  while (!steps_seq.isFull() && (!axis_mng.reqAbort)) {
+    if (axis_mng.getNextStep(step_info)) {
+      // LOG_I("PUSH STIF: axis:%d itv:%.3f(ms) dir:%d\r\n", step_info.axis, (float)step_info.itv * 1000 / STEPPER_TIMER_RATE, step_info.dir);
+      steps_seq.pushQueue(step_info.time_dir);
+      have_gen = true;
+      if (step_info.time_dir.sync) {
+        if (!steps_flag.pushQueue(step_info.flag_data)) {
+          LOG_E("### steps flag have no space\r\n");
+          while(1);
+        }
+      }
+    }
+    else {
+      break;
+    }
+  }
+  return have_gen;
+}
+
+void Planner::shaped_loop() {
+
+  static block_t *bt = nullptr;
+  uint8_t block_num = movesplanned();
+
+  LOG_I("pt run.\n");
+
+  if (axis_mng.reqAbort) {
+    clear_block_buffer();
+    delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
+    axis_mng.abort();
+    axis_mng.reqAbort = false;
+    step_generating = false;
+  }
+
+  xSemaphoreTake(plan_buffer_lock, portMAX_DELAY);
+  if (!bt && block_num) {
+    // Have no more optimal block
+    if (block_buffer_nonbusy == block_buffer_planned) {
+      // Steps will runout in a few millisecond, just take this block. If 5 millisecond can product new steps?
+      if (steps_seq.getBufMilliseconds() < 20) {
+        bt = get_current_block();
+      }
+    }
+    // Just take this block as this block has been optimaled.
+    else {
+      bt = get_current_block();
+    }
+  }
+
+  if (bt) {
+    // Use the left tick of all axes's first plues's tick
+    axis_mng.updateOldestPluesTick();
+    moveQueue.moveTailForward(axis_mng.oldest_plues_tick);
+    if (moveQueue.genMoves(bt)) {
+      // release_current_block();
+      discard_current_block();
+      bt = nullptr;
+      step_generating = true;
+      #ifdef SHAPER_LOG_ENABLE
+      moveQueue.log();
+      #endif
+    }
+  }
+  xSemaphoreGive(plan_buffer_lock);
+
+  // generat steps and push it to queue
+  // #ifdef DEBUG_IO
+  // WRITE(DEBUG_IO, 1);
+  // #endif
+  bool has_gen_steps = genStep();
+  // #ifdef DEBUG_IO
+  // WRITE(DEBUG_IO, 0);
+  // #endif
+
+  #ifdef SHAPER_LOG_ENABLE
+  StepInfo step_info;
+  // LOG_I("NO STEP GEN\r\n");
+  // Consumption
+  while(!steps_seq.isEmpty()) {
+    steps_seq.popQueue(&step_info.time_dir);
+    // LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
+    // if (step_info.time_dir.sync) {
+    //   union StepFlagData flag_data;
+    //   if(steps_flag.popQueue(&flag_data))
+    //     LOG_I("Axis %d sync to %d\r\n", step_info.time_dir.axis, flag_data.sync_pos);
+    //   else
+    //     LOG_E("Axis %d can not got sync data\r\n", step_info.time_dir.axis);
+    // }
+  }
+  #endif
+
+  // No block, no activeDM and steps will runout, add a empty move
+  block_num = movesplanned();
+  if (step_generating &&
+      block_num == 0 &&
+      steps_seq.getBufMilliseconds() < 5) {
+    LOG_I("### No more motion, add a empty move for shaper finish\r\n");
+    moveQueue.addEmptyMove(EMPTY_MOVE_TIME);
+    #ifdef SHAPER_LOG_ENABLE
+    moveQueue.log();
+    #endif
+    genStep();
+    step_generating = false;
+  }
+
+
+  if (step_generating) {
+    uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
+    if (prepare_time_ms > 10)
+      vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/2));
+    else {
+      if (has_gen_steps && block_num) {
+        // continue
+      }
+      else {
+        // Can not make any more steps just delay
+        vTaskDelay(pdMS_TO_TICKS(1));
+      }
+    }
+  }
+  else {
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+
+}
+
+
 #if ENABLED(AUTOTEMP)
 
   void Planner::getHighESpeed() {
@@ -1753,7 +1904,9 @@ bool Planner::_buffer_steps(const int32_t (&target)[X_TO_E]
   block_buffer_head = next_buffer_head;
 
   // Recalculate and optimize trapezoidal speed profiles
+  xSemaphoreTake(plan_buffer_lock, portMAX_DELAY);
   recalculate();
+  xSemaphoreGive(plan_buffer_lock);
 
   // Movement successfully queued!
   return true;

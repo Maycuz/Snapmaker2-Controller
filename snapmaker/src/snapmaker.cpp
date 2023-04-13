@@ -35,7 +35,18 @@
 #include "flash_stm32.h"
 #include "hmi/gcode_result_handler.h"
 
+// Shapper
+#include "../../Marlin/src/module/shaper/AxisInputShaper.h"
+#include "../../Marlin/src/module/shaper/CircularBuffer.h"
+#include "../../Marlin/src/module/shaper/MoveQueue.h"
+#include "../../Marlin/src/module/shaper/TimeGenFunc.h"
+#include "../../Marlin/src/module/shaper/StepsSeq.h"
+#include "../../Marlin/src/module/shaper/shaper_type_define.h"
+
+
 SnapmakerHandle_t sm2_handle;
+
+SemaphoreHandle_t plan_buffer_lock = NULL;
 
 extern void enqueue_hmi_to_marlin();
 
@@ -156,6 +167,9 @@ static void main_loop(void *param) {
 
   cur_mills = millis() - 3000;
 
+  // Shapper init
+
+
   for (;;) {
 
     // receive and execute one command, or push Gcode into Marlin queue
@@ -178,6 +192,22 @@ static void main_loop(void *param) {
       cur_mills = millis();
       // TODO: poll filament sensor state
     }
+  }
+}
+
+
+static void planner_task(void *param) {
+
+  steps_flag.reset();
+  steps_seq.reset();
+  axis_mng.init(&moveQueue, STEPPER_TIMER_TICKS_PER_MS);
+  moveQueue.init(STEPPER_TIMER_TICKS_PER_MS, axis_mng.max_shaper_window_tick, axis_mng.max_shaper_window_right_delta_tick);
+  LOG_I("System start, adding a empty move for shaper\r\n");
+  moveQueue.addEmptyMove(EMPTY_MOVE_TIME);
+  axis_mng.prepare(moveQueue.move_tail);
+
+  while(1) {
+    planner.shaped_loop();
   }
 }
 
@@ -398,6 +428,21 @@ void SnapmakerSetupPost() {
   }
   else {
     LOG_I("Created can event task!\n");
+  }
+
+  plan_buffer_lock = xSemaphoreCreateMutex();
+  if (!plan_buffer_lock) {
+    LOG_E("Can not create plan buffer lock\n");
+  }
+
+  ret = xTaskCreate((TaskFunction_t)planner_task, "planner_task", PLANNER_TASK_STACK_DEPTH,
+        (void *)nullptr, PLANNER_TASK_PRIO, nullptr);
+  if (ret != pdPASS) {
+    LOG_E("Failed to create planner task!\n");
+    while(1);
+  }
+  else {
+    LOG_I("Created planner task!\n");
   }
 
   vTaskStartScheduler();
