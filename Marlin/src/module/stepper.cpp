@@ -134,11 +134,16 @@ Stepper stepper; // Singleton
   uint32_t Stepper::motor_current_setting[3]; // Initialized by settings.load()
 #endif
 
+bool Stepper::sif_valid = false;
+uint32_t Stepper::wait_sif_countdown;
+struct StepTimeDir Stepper::step_time_dir;
+
 uint8_t axis_to_port[X_TO_E] = DEFAULT_AXIS_TO_PORT;
 // private:
 
 block_t* Stepper::current_block; // (= NULL) A pointer to the block currently being traced
 
+uint8_t Stepper::current_direction_bits = 0;
 uint8_t Stepper::last_direction_bits, // = 0
         Stepper::axis_did_move; // = 0
 
@@ -355,6 +360,44 @@ Stepper::stepper_laser_t Stepper::laser_trap = {
 #if DISABLED(MIXING_EXTRUDER)
   #define E_APPLY_STEP(v,Q) E_STEP_WRITE(stepper_extruder, v)
 #endif
+
+#define _APPLY_STEP(AXIS, INV, ALWAYS) AXIS ##_APPLY_STEP(INV, ALWAYS)
+#define _INVERT_STEP_PIN(AXIS) INVERT_## AXIS ##_STEP_PIN
+
+#define PULSE_PREP(AXIS) do{ \
+  count_position[_AXIS(AXIS)] += count_direction[_AXIS(AXIS)]; \
+}while(0)
+
+#define PULSE_START(AXIS) do{ \
+  _APPLY_STEP(AXIS, !_INVERT_STEP_PIN(AXIS), 0); \
+}while(0)
+
+#define PULSE_STOP(AXIS) do { \
+    _APPLY_STEP(AXIS, _INVERT_STEP_PIN(AXIS), 0); \
+}while(0)
+
+
+#if 0
+#define _APPLY_STEP(AXIS) AXIS ##_APPLY_STEP
+#define _INVERT_STEP_PIN(AXIS) INVERT_## AXIS ##_STEP_PIN
+
+Start an active pulse, if Bresenham says so, and update position
+#define PULSE_START(AXIS) do{ \
+  delta_error[_AXIS(AXIS)] += advance_dividend[_AXIS(AXIS)]; \
+  if (delta_error[_AXIS(AXIS)] >= 0) { \
+    _APPLY_STEP(AXIS)(!_INVERT_STEP_PIN(AXIS), 0); \
+    count_position[_AXIS(AXIS)] += count_direction[_AXIS(AXIS)]; \
+  } \
+}while(0)
+// Stop an active pulse, if any, and adjust error term
+#define PULSE_STOP(AXIS) do { \
+  if (delta_error[_AXIS(AXIS)] >= 0) { \
+    delta_error[_AXIS(AXIS)] -= advance_divisor; \
+    _APPLY_STEP(AXIS)(_INVERT_STEP_PIN(AXIS), 0); \
+  } \
+}while(0)
+#endif
+
 
 void Stepper::wake_up() {
   // TCNT1 = 0;
@@ -1288,9 +1331,191 @@ HAL_STEP_TIMER_ISR() {
 
   HAL_timer_isr_prologue(STEP_TIMER_NUM);
 
-  Stepper::isr();
+  // Stepper::isr();
+  DISABLE_ISRS();
+  Stepper::ts_isr();
+  ENABLE_ISRS();
 
   HAL_timer_isr_epilogue(STEP_TIMER_NUM);
+}
+
+
+void Stepper::ts_isr() {
+
+  #ifdef SHAPER_LOG_ENABLE
+  return;
+  #endif
+
+  // Program timer compare for the maximum period, so it does NOT
+  // flag an interrupt while this ISR is running - So changes from small
+  // periods to big periods are respected and the timer does not reset to 0
+  HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_TIMER_TYPE_MAX));
+
+  // switch_detect.check();
+  // power_loss.check();
+
+  // If we must abort the current block, do so!
+  if (abort_current_block) {
+    axis_did_move = 0;
+    abort_current_block = false;
+    sif_valid = false;
+    axis_mng.reqAbort = true;
+    HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
+    return;
+  }
+
+  if (axis_mng.reqAbort) {
+    HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
+    return ;
+  }
+
+  int axis_stop = -1;
+  if (sif_valid) {
+
+    // Set direction
+    if (step_time_dir.dir) {
+      CBI(current_direction_bits, step_time_dir.axis);
+    }
+    else {
+      SBI(current_direction_bits, step_time_dir.axis);
+    }
+    if (current_direction_bits != last_direction_bits) {
+      last_direction_bits = current_direction_bits;
+      // set_directions(current_direction_bits);
+      set_directions();
+    }
+    // Update axies move bits
+    if (axis_did_move != step_time_dir.move_bits) {
+      axis_did_move = step_time_dir.move_bits;
+    }
+
+
+    union StepFlagData flag_data;
+    // Out put plus
+    if (0 == step_time_dir.axis) {
+      PULSE_START(X);
+      PULSE_PREP(X);
+      if (step_time_dir.sync) {
+        steps_flag.popQueue(&flag_data);
+        count_position[X_AXIS] = flag_data.sync_pos;
+      }
+      // PULSE_STOP(X);
+      axis_stop = X_AXIS;
+    }
+    else if(1 == step_time_dir.axis) {
+      PULSE_START(Y);
+      PULSE_PREP(Y);
+      if (step_time_dir.sync) {
+        steps_flag.popQueue(&flag_data);
+        count_position[Y_AXIS] = flag_data.sync_pos;
+      }
+      // PULSE_STOP(Y);
+      axis_stop = Y_AXIS;
+    }
+    else if(2 == step_time_dir.axis) {
+      PULSE_START(Z);
+      PULSE_PREP(Z);
+      if (step_time_dir.sync) {
+        steps_flag.popQueue(&flag_data);
+        count_position[Z_AXIS] = flag_data.sync_pos;
+      }
+      // PULSE_STOP(Z);
+      axis_stop = Z_AXIS;
+    }
+    else if(3 == step_time_dir.axis) {
+      PULSE_START(E);
+      PULSE_PREP(E);
+      if (step_time_dir.sync) {
+        steps_flag.popQueue(&flag_data);
+        count_position[E_AXIS] = flag_data.sync_pos;
+      }
+      // PULSE_STOP(E);
+      axis_stop = E_AXIS;
+    }
+  }
+
+  // Last ISR sif_valid false, measn no step output
+  // Start getting the first step. If planner has prepare 100ms step, just starting pluse output
+  // Or wait for at leat 100ms, start output now.
+  if (!sif_valid) {
+    if (steps_seq.getBufMilliseconds() > 100) {
+      if(steps_seq.popQueue(&step_time_dir)) {
+        sif_valid = true;
+      }
+      else {
+        sif_valid = false;
+      }
+    }
+    else {
+      if (wait_sif_countdown) wait_sif_countdown--;
+      if (0 == wait_sif_countdown) {
+        if(steps_seq.popQueue(&step_time_dir)) {
+          sif_valid = true;
+        }
+        else {
+          sif_valid = false;
+        }
+      }
+    }
+  }
+  else {
+    if(steps_seq.popQueue(&step_time_dir)) {
+      sif_valid = true;
+    }
+    else  {
+      sif_valid = false;
+      // wait for 100ms seconds
+      wait_sif_countdown = 10;
+    }
+  }
+
+  if (sif_valid) {
+    if (step_time_dir.itv > (HAL_timer_get_count(STEP_TIMER_NUM) + 4 * STEPPER_TIMER_TICKS_PER_US)) {
+      HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv - HAL_timer_get_count(STEP_TIMER_NUM)));
+    }
+    else {
+      // Too short for ISR, just output this pluse
+      if (0 == axis_stop) {
+        PULSE_STOP(X);
+      }
+      else if(1 == axis_stop) {
+        PULSE_STOP(Y);
+      }
+      else if(2 == axis_stop) {
+        PULSE_STOP(Z);
+      }
+      else if(3 == axis_stop) {
+        PULSE_STOP(E);
+      }
+
+      HAL_timer_isr_prologue(STEP_TIMER_NUM);
+      return ts_isr();
+    }
+  }
+  else {
+    #ifdef DEBUG_IO
+    WRITE(DEBUG_IO, 1);
+    #endif
+    axis_did_move = 0;
+    HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
+    #ifdef DEBUG_IO
+    WRITE(DEBUG_IO, 0);
+    #endif
+  }
+
+  if (0 == axis_stop) {
+    PULSE_STOP(X);
+  }
+  else if(1 == axis_stop) {
+    PULSE_STOP(Y);
+  }
+  else if(2 == axis_stop) {
+    PULSE_STOP(Z);
+  }
+  else if(3 == axis_stop) {
+    PULSE_STOP(E);
+  }
+
 }
 
 #ifdef CPU_32_BIT
@@ -1511,6 +1736,7 @@ void Stepper::stepper_pulse_phase_isr() {
   // Take multiple steps per interrupt (For high speed moves)
   do {
 
+    #if 0
     #define _APPLY_STEP(AXIS) AXIS ##_APPLY_STEP
     #define _INVERT_STEP_PIN(AXIS) INVERT_## AXIS ##_STEP_PIN
 
@@ -1530,6 +1756,7 @@ void Stepper::stepper_pulse_phase_isr() {
         _APPLY_STEP(AXIS)(_INVERT_STEP_PIN(AXIS), 0); \
       } \
     }while(0)
+    #endif
 
     // Pulse start
     #if HAS_X_STEP

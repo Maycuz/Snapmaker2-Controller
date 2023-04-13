@@ -43,6 +43,9 @@
 
 #include "../inc/MarlinConfig.h"
 
+#include "./shaper/StepsSeq.h"
+#include "./shaper/AxisInputShaper.h"
+
 // Disable multiple steps per ISR
 //#define DISABLE_MULTI_STEPPING
 
@@ -238,6 +241,9 @@ extern uint8_t axis_to_port[X_TO_E];
 class Stepper {
 
   public:
+    static bool sif_valid;
+    static uint32_t wait_sif_countdown;
+    static struct StepTimeDir step_time_dir;
 
     #if ENABLED(DEBUG_ISR_LATENCY)
       static uint16_t pre_isr_ticks;
@@ -259,6 +265,7 @@ class Stepper {
 
     static block_t* current_block;          // A pointer to the block currently being traced
 
+    static uint8_t  current_direction_bits;
     static uint8_t last_direction_bits,     // The next stepping-bits to be output
                    axis_did_move;           // Last Movement in the given direction is not null, as computed when the last movement was fetched from planner
 
@@ -374,6 +381,7 @@ class Stepper {
 
     // The ISR scheduler
     static void isr();
+    static void ts_isr();
 
     // The stepper pulse phase ISR
     static void stepper_pulse_phase_isr();
