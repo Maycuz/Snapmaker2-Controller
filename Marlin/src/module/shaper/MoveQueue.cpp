@@ -1,16 +1,16 @@
 #include "MoveQueue.h"
 #include "AxisInputShaper.h"
-#include "../../../../snapmaker/debug/debug.h"
+#include "../../../../snapmaker/src/common/debug.h"
 
 MoveQueue moveQueue;
 uint32_t MoveQueue::ms2tick;
 
-static xyze_float_t ZERO_AXIS_R = {0};
+static float ZERO_AXIS_R[NUM_AXIS] = {0, 0, 0, 0, 0};
 
 MoveQueue::MoveQueue() {
   moves_head_tick = 0;
   moves_tail_tick = 0;
-  for (uint32_t i = 0; i < AXIS_SIZE; i++) {
+  for (uint32_t i = 0; i < NUM_AXIS; i++) {
     last_mq_pos[i] = 0;
   }
 }
@@ -52,7 +52,8 @@ bool MoveQueue::genMoves(block_t* block) {
   }
 
   if (block->flag & BLOCK_FLAG_SYNC_POSITION) {
-    addSyncMove(block->position);
+    // 747_err
+    // addSyncMove(block->position);
     return true;
   }
 
@@ -106,11 +107,11 @@ bool MoveQueue::genMoves(block_t* block) {
     plateau = 0;
   }
 
-  xyze_float_t axis_r;
-  axis_r.x = block->axis_r.x;
-  axis_r.y = block->axis_r.y;
-  axis_r.z = block->axis_r.z;
-  axis_r.e = block->axis_r.e;
+  float axis_r[NUM_AXIS];
+  axis_r[X_AXIS] = block->axis_r[X_AXIS];
+  axis_r[Y_AXIS] = block->axis_r[Y_AXIS];
+  axis_r[Z_AXIS] = block->axis_r[Z_AXIS];
+  axis_r[E_AXIS] = block->axis_r[E_AXIS];
 
   if (accelDistance > EPSILON) {
     Move * am = addMove(entry_speed, cruise_speed, acceleration, accelDistance, axis_r, acc_tick);
@@ -140,7 +141,7 @@ bool MoveQueue::genMoves(block_t* block) {
   return true;
 }
 
-Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float distance, xyze_float_t& axis_r, uint32_t t) {
+Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float distance, float axis_r[], uint32_t t) {
 
   Move &move = moves[move_head];
   move.use_advance = false;
@@ -151,17 +152,17 @@ Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float dis
   move.distance = distance;
   move.t = t;
 
-  move.axis_r[0] = axis_r.x;
-  move.axis_r[1] = axis_r.y;
-  move.axis_r[2] = axis_r.z;
-  move.axis_r[3] = axis_r.e;
+  move.axis_r[X_AXIS] = axis_r[X_AXIS];
+  move.axis_r[Y_AXIS] = axis_r[Y_AXIS];
+  move.axis_r[Z_AXIS] = axis_r[Z_AXIS];
+  move.axis_r[E_AXIS] = axis_r[E_AXIS];
 
   move.start_tick = moves_head_tick;
   move.end_tick = move.start_tick + t;
   moves_head_tick = move.end_tick;
   can_print_head_tick = moves_head_tick - max_shape_window_right_delta_tick;
 
-  for (int i = 0; i < AXIS_SIZE; ++i) {
+  for (int i = 0; i < NUM_AXIS; ++i) {
     move.start_pos[i] = last_mq_pos[i];
     last_mq_pos[i] = move.end_pos[i] = move.start_pos[i] + move.distance * move.axis_r[i];
   }
@@ -173,15 +174,15 @@ Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float dis
 }
 
 void MoveQueue::addEmptyMove(uint32_t time) {
-  // LOG_I("### Add empty move\r\n");
   addMove(0, 0, 0, 0, ZERO_AXIS_R, time);
 }
 
-void MoveQueue::addSyncMove(abce_long_t sync_pos) {
+void MoveQueue::addSyncMove(int sync_pos[]) {
   Move *add_move = addMove(0, 0, 0, 0, ZERO_AXIS_R, 0);
   add_move->flag = BLOCK_FLAG_SYNC_POSITION;
-  // add_move->sync_target_pos = sync_pos * INT_STEPS_SCALE;
-  add_move->sync_target_pos = sync_pos;
+  LOOP_SHAPER_AXES(i) {
+    add_move->sync_target_pos[i] = sync_pos[i];
+  }
 }
 
 float MoveQueue::getAxisPosition(int move_index, int axis, uint32_t tick) {
@@ -218,7 +219,7 @@ bool MoveQueue::haveMotion() {
     return false;
 
   uint8_t h_idx = prevMoveIndex(move_head);
-  for (int i = 0; i < AXIS_SIZE; i++) {
+  for (int i = 0; i < NUM_AXIS; i++) {
     if (moves[move_tail].start_pos[i] != moves[h_idx].end_pos[i])
       return true;
   }

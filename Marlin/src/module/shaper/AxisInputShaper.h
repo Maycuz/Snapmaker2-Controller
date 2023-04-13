@@ -3,17 +3,15 @@
 
 #include "TimeGenFunc.h"
 #include "MoveQueue.h"
-#include "FuncManager.h"
 #include "StepsSeq.h"
 #include "CircularBuffer.h"
 
 
 // #define SHAPER_LOG_ENABLE
 // #define LOG_MOTION_INFO
-#define AXES_NUM                      (4)
 #define EMPTY_MOVE_TIME               (100 * STEPPER_TIMER_TICKS_PER_MS)
 #define SHAPER_VIBRATION_REDUCTION    (20)
-#define LOOP_SHAPER_AXES(VAR)         LOOP_S_L_N(VAR, 0, AXES_NUM)
+#define LOOP_SHAPER_AXES(VAR)         LOOP_S_L_N(VAR, 0, NUM_AXIS)
 
 
 
@@ -83,7 +81,7 @@ class AxisInputShaper
 {
 public:
   AxisInputShaper(){};
-  AT_END_OF_TEXT void init(int axis, MoveQueue *mq, InputShaperType type, uint32_t s2t);
+  void init(int axis, MoveQueue *mq, InputShaperType type, uint32_t s2t);
   void reset();
   void setConfig(int type, float frequency, float zeta);
   bool prepare(int m_idx);
@@ -152,7 +150,7 @@ public:
   AxisInputShaper *y_sp;
   AxisInputShaper *z_sp;
   AxisInputShaper *e_sp;
-  AxisInputShaper axes[AXES_NUM];
+  AxisInputShaper axes[NUM_AXIS];
   uint32_t cur_print_tick;
   uint32_t oldest_plues_tick;
   MoveQueue *mq;

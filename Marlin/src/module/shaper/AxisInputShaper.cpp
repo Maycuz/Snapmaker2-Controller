@@ -2,7 +2,7 @@
 #include "MoveQueue.h"
 #include "TimeGenFunc.h"
 #include "DiagnoseLog.h"
-#include "../../../../snapmaker/debug/debug.h"
+#include "../../../../snapmaker/src/common/debug.h"
 
 
 #define CALC_OF_BINOMIAL(tgf)     ((tgf.coef_a * tgf.time_wind + tgf.coef_b) * tgf.time_wind)

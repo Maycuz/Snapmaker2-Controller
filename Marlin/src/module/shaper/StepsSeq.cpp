@@ -1,6 +1,6 @@
 #include "StepsSeq.h"
 #include <stdlib.h>
-#include "../../../../snapmaker/debug/debug.h"
+#include "../../../../snapmaker/src/common/debug.h"
 
 StepsSeq steps_seq;
 StepFlag steps_flag;

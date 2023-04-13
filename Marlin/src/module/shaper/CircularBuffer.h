@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include "../../MarlinCore.h"
-#include "../../../../snapmaker/debug/debug.h"
+#include "../../Marlin.h"
+#include "../../../../snapmaker/src/common/debug.h"
 
 // template<typename T> // T is circular_buffer type
 // class circular_buffer_iterator {

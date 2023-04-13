@@ -1,6 +1,6 @@
 #include "DiagnoseLog.h"
 #include <stdlib.h>
-#include "../../../../snapmaker/debug/debug.h"
+#include "../../../../snapmaker/src/common/debug.h"
 
 circular_buffer<int> cb_int(8);
 circular_buffer<struct pos_trace> cb_pos_trace(32);

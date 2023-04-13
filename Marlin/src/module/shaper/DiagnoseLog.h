@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include "../../MarlinCore.h"
-#include "../../../../snapmaker/debug/debug.h"
+#include "../../Marlin.h"
+#include "../../../../snapmaker/src/common/debug.h"
 #include "AxisInputShaper.h"
 #include "CircularBuffer.h"
 
