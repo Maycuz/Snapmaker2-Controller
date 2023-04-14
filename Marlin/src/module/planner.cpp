@@ -723,9 +723,10 @@ void Planner::calculate_trapezoid_for_block(block_t * const block, const float &
   float smoothed_cruise_speed_sqr = MAX(entry_speed_sqr, exit_speed_sqr, (entry_speed_sqr + exit_speed_sqr + 2 * block->acceleration_to_deceleration * block->millimeters) * 0.5);
   block->cruise_speed = SQRT(MIN(block->nominal_speed_sqr, smoothed_cruise_speed_sqr));
 
-  LOG_I("entry_speed_sqr %f, exit_speed_sqr %f, acceleration_to_deceleration %f", entry_speed_sqr, exit_speed_sqr, block->acceleration_to_deceleration);
-  LOG_I("millimeters %f, smoothed_cruise_speed_sqr %f, nominal_speed_sqr %f", block->millimeters, smoothed_cruise_speed_sqr, block->nominal_speed_sqr);
-  LOG_I("block->cruise_speed %f", block->cruise_speed);
+  // 747 debug log
+  // LOG_I("entry_speed_sqr %f, exit_speed_sqr %f, acceleration_to_deceleration %f", entry_speed_sqr, exit_speed_sqr, block->acceleration_to_deceleration);
+  // LOG_I("millimeters %f, smoothed_cruise_speed_sqr %f, nominal_speed_sqr %f", block->millimeters, smoothed_cruise_speed_sqr, block->nominal_speed_sqr);
+  // LOG_I("block->cruise_speed %f", block->cruise_speed);
 
   #if 0
   uint32_t initial_rate = CEIL(block->nominal_rate * entry_factor),
@@ -2570,7 +2571,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
       LIMIT_ACCEL_FLOAT(E_AXIS, ACCEL_IDX);
     }
   }
-  LOG_I("accel %d\n", accel);
+  // LOG_I("accel %d\n", accel);
   block->acceleration_steps_per_s2 = accel;
   block->acceleration = accel / steps_per_mm;
   block->acceleration_to_deceleration = block->acceleration * 0.5;
