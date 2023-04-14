@@ -48,6 +48,7 @@ void MoveQueue::reset() {
 
 bool MoveQueue::genMoves(block_t* block) {
   if (getFreeMoveSize() < 3) {
+    LOG_I("Move not enough\r\n");
     return false;
   }
 
@@ -213,7 +214,7 @@ void MoveQueue::moveTailForward(uint32_t print_tick) {
     // LOG_I("print_tick %d, move[tail] end_tick %d\r\n", print_tick, moves[move_tail].end_tick);
     moves[move_tail].reset();
     move_tail = MOVE_MOD(move_tail + 1);
-    LOG_I("MT to %d\r\n", move_tail);
+    // LOG_I("MT to %d\r\n", move_tail);
     #ifdef SHAPER_LOG_ENABLE
     LOG_I("MT to %d\r\n", move_tail);
     #endif
