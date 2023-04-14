@@ -1392,7 +1392,7 @@ void Stepper::ts_isr() {
 
     union StepFlagData flag_data;
     // Out put plus
-    if (0 == step_time_dir.axis) {
+    if (X_AXIS == step_time_dir.axis) {
       PULSE_START(X);
       PULSE_PREP(X);
       if (step_time_dir.sync) {
@@ -1402,7 +1402,7 @@ void Stepper::ts_isr() {
       // PULSE_STOP(X);
       axis_stop = X_AXIS;
     }
-    else if(1 == step_time_dir.axis) {
+    else if(Y_AXIS == step_time_dir.axis) {
       PULSE_START(Y);
       PULSE_PREP(Y);
       if (step_time_dir.sync) {
@@ -1412,7 +1412,7 @@ void Stepper::ts_isr() {
       // PULSE_STOP(Y);
       axis_stop = Y_AXIS;
     }
-    else if(2 == step_time_dir.axis) {
+    else if(Z_AXIS == step_time_dir.axis) {
       PULSE_START(Z);
       PULSE_PREP(Z);
       if (step_time_dir.sync) {
@@ -1422,7 +1422,7 @@ void Stepper::ts_isr() {
       // PULSE_STOP(Z);
       axis_stop = Z_AXIS;
     }
-    else if(3 == step_time_dir.axis) {
+    else if(E_AXIS == step_time_dir.axis) {
       PULSE_START(E);
       PULSE_PREP(E);
       if (step_time_dir.sync) {
@@ -1475,16 +1475,16 @@ void Stepper::ts_isr() {
     }
     else {
       // Too short for ISR, just output this pluse
-      if (0 == axis_stop) {
+      if (X_AXIS == axis_stop) {
         PULSE_STOP(X);
       }
-      else if(1 == axis_stop) {
+      else if(Y_AXIS == axis_stop) {
         PULSE_STOP(Y);
       }
-      else if(2 == axis_stop) {
+      else if(Z_AXIS == axis_stop) {
         PULSE_STOP(Z);
       }
-      else if(3 == axis_stop) {
+      else if(E_AXIS == axis_stop) {
         PULSE_STOP(E);
       }
 
@@ -1503,16 +1503,16 @@ void Stepper::ts_isr() {
     #endif
   }
 
-  if (0 == axis_stop) {
+  if (X_AXIS == axis_stop) {
     PULSE_STOP(X);
   }
-  else if(1 == axis_stop) {
+  else if(Y_AXIS == axis_stop) {
     PULSE_STOP(Y);
   }
-  else if(2 == axis_stop) {
+  else if(Z_AXIS == axis_stop) {
     PULSE_STOP(Z);
   }
-  else if(3 == axis_stop) {
+  else if(E_AXIS == axis_stop) {
     PULSE_STOP(E);
   }
 

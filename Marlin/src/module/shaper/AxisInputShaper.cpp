@@ -603,10 +603,10 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   ms2tick = ms2t;
   this->mq = mq;
 
-  x_sp = &axes[0];
-  y_sp = &axes[1];
-  z_sp = &axes[2];
-  e_sp = &axes[3];
+  x_sp = &axes[X_AXIS];
+  y_sp = &axes[Y_AXIS];
+  z_sp = &axes[Z_AXIS];
+  e_sp = &axes[E_AXIS];
 
   x_sp->init(X_AXIS, mq, InputShaperType::ei, ms2t);
   y_sp->init(Y_AXIS, mq, InputShaperType::ei, ms2t);
