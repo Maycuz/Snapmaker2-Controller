@@ -349,9 +349,10 @@ void SnapmakerSetupPost() {
   }
 
   // forced update of speed parameters
-  process_cmd_imd("M201 X1000 Y1000");
-  process_cmd_imd("M203 X100 Y100 Z40 E40");
-  process_cmd_imd("M204 S1000");
+  // Comment by 747
+  // process_cmd_imd("M201 X1000 Y1000");
+  // process_cmd_imd("M203 X100 Y100 Z40 E40");
+  // process_cmd_imd("M204 S1000");
 
   // power on the modules by default
   enable_all_steppers();
