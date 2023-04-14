@@ -1749,6 +1749,8 @@ void Planner::synchronize() {
     #if ENABLED(EXTERNAL_CLOSED_LOOP_CONTROLLER)
       || (READ(CLOSED_LOOP_ENABLE_PIN) && !READ(CLOSED_LOOP_MOVE_COMPLETE_PIN))
     #endif
+    || has_motion_queue()
+    || axis_mng.reqAbort
   ) idle();
 }
 
