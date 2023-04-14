@@ -723,6 +723,10 @@ void Planner::calculate_trapezoid_for_block(block_t * const block, const float &
   float smoothed_cruise_speed_sqr = MAX(entry_speed_sqr, exit_speed_sqr, (entry_speed_sqr + exit_speed_sqr + 2 * block->acceleration_to_deceleration * block->millimeters) * 0.5);
   block->cruise_speed = SQRT(MIN(block->nominal_speed_sqr, smoothed_cruise_speed_sqr));
 
+  LOG_I("entry_speed_sqr %f, exit_speed_sqr %f, acceleration_to_deceleration %f", entry_speed_sqr, exit_speed_sqr, block->acceleration_to_deceleration);
+  LOG_I("millimeters %f, smoothed_cruise_speed_sqr %f, nominal_speed_sqr %f", block->millimeters, smoothed_cruise_speed_sqr, block->nominal_speed_sqr);
+  LOG_I("block->cruise_speed %f", block->cruise_speed);
+
   #if 0
   uint32_t initial_rate = CEIL(block->nominal_rate * entry_factor),
            final_rate = CEIL(block->nominal_rate * exit_factor); // (steps per second)
@@ -1251,6 +1255,11 @@ void Planner::shaped_loop() {
     }
   }
   xSemaphoreGive(plan_buffer_lock);
+
+  // 747_debug
+  moveQueue.reset();
+  vTaskDelay(pdMS_TO_TICKS(1));
+  return;
 
   // generat steps and push it to queue
   // #ifdef DEBUG_IO
@@ -2121,6 +2130,21 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
   // Bail if this is a zero-length block
   if (block->step_event_count < MIN_STEPS_PER_SEGMENT) return false;
 
+
+  if (block->millimeters > 0) {
+      block->axis_r[X_AXIS]= dx / block->millimeters;
+      block->axis_r[Y_AXIS]= dy / block->millimeters;
+      block->axis_r[Z_AXIS]= dz / block->millimeters;
+      block->axis_r[E_AXIS]= e_factor[extruder] * de / block->millimeters;
+      // 747_err
+      // flow_control_e_delta += (de * e_factor[extruder] - de);
+  } else {
+    block->axis_r[X_AXIS] = 0;
+    block->axis_r[Y_AXIS] = 0;
+    block->axis_r[Z_AXIS] = 0;
+    block->axis_r[E_AXIS] = 0;
+  }
+
   #if ENABLED(MIXING_EXTRUDER)
     MIXER_POPULATE_BLOCK();
   #endif
@@ -2546,8 +2570,18 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
       LIMIT_ACCEL_FLOAT(E_AXIS, ACCEL_IDX);
     }
   }
+  LOG_I("accel %d\n", accel);
   block->acceleration_steps_per_s2 = accel;
   block->acceleration = accel / steps_per_mm;
+  block->acceleration_to_deceleration = block->acceleration * 0.5;
+
+  // 747_err
+  // if (settings.acceleration_to_deceleration_ratio > 20) {
+  //   block->acceleration_to_deceleration = block->acceleration * settings.acceleration_to_deceleration_ratio * 0.01;
+  // } else {
+  //   block->acceleration_to_deceleration = block->acceleration;
+  // }
+
   #if DISABLED(S_CURVE_ACCELERATION)
     block->acceleration_rate = (uint32_t)(accel * (4096.0f * 4096.0f / (STEPPER_TIMER_RATE)));
   #endif

@@ -62,6 +62,14 @@ bool MoveQueue::genMoves(block_t* block) {
   float leave_speed   = block->final_speed / 1000.0f;
   float cruise_speed  = block->cruise_speed / 1000.0f;
 
+  // 747 DEBUG
+  LOG_I("==== block =====\r\n");
+  LOG_I("millimeters: %f\r\n", block->millimeters);
+  LOG_I("initial_speed: %f\r\n", block->initial_speed);
+  LOG_I("final_speed: %f\r\n", block->final_speed);
+  LOG_I("cruise_speed: %f\r\n", block->cruise_speed);
+  LOG_I("acceleration: %f\r\n", block->acceleration);
+
   if (cruise_speed < EPSILON) {
     LOG_I("A zero speed block has no move\r\n");
     return false;
