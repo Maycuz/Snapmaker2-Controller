@@ -235,7 +235,8 @@ millis_t max_inactive_time, // = 0
   float Z_MAX_POS = 150;
   float X_MIN_POS = 0;
   float Y_MIN_POS = 0;
-  float Z_MIN_POS = 0;
+  // 747 debug
+  float Z_MIN_POS = -10;
 
   // Machine definition size
   float X_DEF_SIZE = 145;

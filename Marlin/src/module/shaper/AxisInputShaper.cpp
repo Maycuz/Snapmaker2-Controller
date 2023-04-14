@@ -606,11 +606,13 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   x_sp = &axes[X_AXIS];
   y_sp = &axes[Y_AXIS];
   z_sp = &axes[Z_AXIS];
+  b_sp = &axes[B_AXIS];
   e_sp = &axes[E_AXIS];
 
   x_sp->init(X_AXIS, mq, InputShaperType::ei, ms2t);
   y_sp->init(Y_AXIS, mq, InputShaperType::ei, ms2t);
   z_sp->init(Z_AXIS, mq, InputShaperType::none, ms2t);
+  b_sp->init(B_AXIS, mq, InputShaperType::none, ms2t);
   e_sp->init(E_AXIS, mq, InputShaperType::none, ms2t);
 
   uint32_t sw;
@@ -718,17 +720,20 @@ void AxisMng::abort() {
 }
 
 void AxisMng::updateOldestPluesTick() {
-  uint32_t sw_tick = axes[0].shaper_window.tick;
-  uint32_t left_plues_tick = sw_tick + (-axes[0].left_delta * ms2tick);
+  uint32_t shaper_window_tick = axes[0].shaper_window.tick;
+  uint32_t left_plues_tick = shaper_window_tick + LROUND((-axes[0].left_delta * ms2tick));
   uint32_t opt = left_plues_tick;
+  uint8_t axis_index;
   LOOP_SHAPER_AXES(i) {
-    sw_tick = axes[i].shaper_window.tick;
-    left_plues_tick = sw_tick - (axes[i].left_delta * ms2tick);
+    shaper_window_tick = axes[i].shaper_window.tick;
+    left_plues_tick = shaper_window_tick - (axes[i].left_delta * ms2tick);
     if (PENDING(left_plues_tick, opt)) {
       opt = left_plues_tick;
+      axis_index = i;
     }
   }
   oldest_plues_tick = opt;
+  LOG_I("oldest_plues_tick update to %d for axis %d", oldest_plues_tick, axis_index);
 }
 
 AxisInputShaper *AxisMng::findMinPrintTickAxis() {
@@ -748,7 +753,7 @@ AxisInputShaper *AxisMng::findMinPrintTickAxis() {
   }
 
   if (nearest_axis && ELAPSED(nearest_axis->print_tick, mq->can_print_head_tick)) {
-    // LOG_I("ActiveDM(%d)'s tick must wait for move's gen step tick\r\n", nearest_axis->axis);
+    LOG_I("ActiveDM(%d)'s tick must wait for move's gen step tick\r\n", nearest_axis->axis);
     nearest_axis = nullptr;
   }
 

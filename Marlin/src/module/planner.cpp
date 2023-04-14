@@ -2138,6 +2138,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
       block->axis_r[X_AXIS]= dx / block->millimeters;
       block->axis_r[Y_AXIS]= dy / block->millimeters;
       block->axis_r[Z_AXIS]= dz / block->millimeters;
+      block->axis_r[B_AXIS] = 0;
       block->axis_r[E_AXIS]= e_factor[extruder] * de / block->millimeters;
       // 747_err
       // flow_control_e_delta += (de * e_factor[extruder] - de);
@@ -2145,6 +2146,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
     block->axis_r[X_AXIS] = 0;
     block->axis_r[Y_AXIS] = 0;
     block->axis_r[Z_AXIS] = 0;
+    block->axis_r[B_AXIS] = 0;
     block->axis_r[E_AXIS] = 0;
   }
 

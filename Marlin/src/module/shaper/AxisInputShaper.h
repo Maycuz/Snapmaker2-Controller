@@ -149,6 +149,7 @@ public:
   AxisInputShaper *x_sp;
   AxisInputShaper *y_sp;
   AxisInputShaper *z_sp;
+  AxisInputShaper *b_sp;
   AxisInputShaper *e_sp;
   AxisInputShaper axes[NUM_AXIS];
   uint32_t cur_print_tick;

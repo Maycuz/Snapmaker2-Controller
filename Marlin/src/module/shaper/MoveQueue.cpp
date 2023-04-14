@@ -35,7 +35,7 @@ void Move::log(uint8_t idx) {
   LOG_I("end pos: %f, %f, %f, %f\r\n", end_pos[0], end_pos[1], end_pos[2], end_pos[3]);
   // LOG_I("start pos: %u, %u, %u, %u\r\n", start_pos[0], start_pos[1], start_pos[2], start_pos[3]);
   // LOG_I("end pos: %u, %u, %u, %u\r\n", end_pos[0], end_pos[1], end_pos[2], end_pos[3]);
-  LOG_I("axis ratio:%f, %f, %f, %f\r\n", axis_r[0], axis_r[1], axis_r[2], axis_r[3]);
+  LOG_I("axis ratio:%f, %f, %f, %f, %f\r\n", axis_r[X_AXIS], axis_r[Y_AXIS], axis_r[Z_AXIS], axis_r[B_AXIS], axis_r[E_AXIS]);
 }
 
 void MoveQueue::reset() {
@@ -119,6 +119,7 @@ bool MoveQueue::genMoves(block_t* block) {
   axis_r[X_AXIS] = block->axis_r[X_AXIS];
   axis_r[Y_AXIS] = block->axis_r[Y_AXIS];
   axis_r[Z_AXIS] = block->axis_r[Z_AXIS];
+  axis_r[B_AXIS] = block->axis_r[B_AXIS];
   axis_r[E_AXIS] = block->axis_r[E_AXIS];
 
   if (accelDistance > EPSILON) {
@@ -163,6 +164,7 @@ Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float dis
   move.axis_r[X_AXIS] = axis_r[X_AXIS];
   move.axis_r[Y_AXIS] = axis_r[Y_AXIS];
   move.axis_r[Z_AXIS] = axis_r[Z_AXIS];
+  move.axis_r[B_AXIS] = axis_r[B_AXIS];
   move.axis_r[E_AXIS] = axis_r[E_AXIS];
 
   move.start_tick = moves_head_tick;
@@ -211,7 +213,7 @@ void MoveQueue::moveTailForward(uint32_t print_tick) {
     // LOG_I("print_tick %d, move[tail] end_tick %d\r\n", print_tick, moves[move_tail].end_tick);
     moves[move_tail].reset();
     move_tail = MOVE_MOD(move_tail + 1);
-    // LOG_I("MT to %d\r\n", move_tail);
+    LOG_I("MT to %d\r\n", move_tail);
     #ifdef SHAPER_LOG_ENABLE
     LOG_I("MT to %d\r\n", move_tail);
     #endif
