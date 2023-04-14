@@ -1257,9 +1257,9 @@ void Planner::shaped_loop() {
   xSemaphoreGive(plan_buffer_lock);
 
   // 747_debug
-  moveQueue.reset();
-  vTaskDelay(pdMS_TO_TICKS(1));
-  return;
+  // moveQueue.reset();
+  // vTaskDelay(pdMS_TO_TICKS(1));
+  // return;
 
   // generat steps and push it to queue
   // #ifdef DEBUG_IO
