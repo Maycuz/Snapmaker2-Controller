@@ -456,6 +456,16 @@ void Stepper::set_directions() {
     SET_STEP_DIR(B); // B
   #endif
 
+  // 747 DEBUG, allways just for E0
+  if (motor_direction(_AXIS(E))) {
+    count_direction[_AXIS(E)] = -1;
+    REV_E_DIR(0);
+  }
+  else {
+    NORM_E_DIR(0);
+    count_direction[_AXIS(E)] = 1;
+  }
+
   #if DISABLED(LIN_ADVANCE)
     #if ENABLED(MIXING_EXTRUDER)
        // Because this is valid for the whole block we don't know
