@@ -8,9 +8,10 @@ uint32_t MoveQueue::ms2tick;
 static float ZERO_AXIS_R[NUM_AXIS] = {0, 0, 0, 0, 0};
 
 MoveQueue::MoveQueue() {
+  move_tail = move_head = 0;
   moves_head_tick = 0;
   moves_tail_tick = 0;
-  for (uint32_t i = 0; i < NUM_AXIS; i++) {
+  LOOP_SHAPER_AXES(i) {
     last_mq_pos[i] = 0;
   }
 }
@@ -43,7 +44,9 @@ void MoveQueue::reset() {
   move_head = 0;
   moves_head_tick = 0;
   moves_tail_tick = 0;
-  last_mq_pos[0] = last_mq_pos[1] = last_mq_pos[2] = last_mq_pos[3] = 0;
+  LOOP_SHAPER_AXES(i) {
+    last_mq_pos[i] = 0;
+  }
 }
 
 bool MoveQueue::genMoves(block_t* block) {

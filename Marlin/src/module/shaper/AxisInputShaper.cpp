@@ -202,8 +202,9 @@ void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, uint32
 
 void AxisInputShaper::reset() {
   tgf_1.flag = tgf_2.flag = 0;
-  last_print_tick = print_pos = 0.0;
-  last_print_tick = 0;
+  last_print_tick = print_tick = 0;
+  print_pos = 0.0;
+  delta_e = 0.0;
   shaper_window.reset();
 }
 
