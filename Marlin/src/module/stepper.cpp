@@ -1361,11 +1361,41 @@ void Stepper::ts_isr() {
   // periods to big periods are respected and the timer does not reset to 0
   HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_TIMER_TYPE_MAX));
 
-  // switch_detect.check();
-  // power_loss.check();
+  // checking power loss here because when no moves in block buffer, ISR will not
+  // execute to endstop.update(), then we cannot check power loss there.
+  // But if power loss happened and ISR cannot get block, no need to check again
+  // if (quickstop.CheckInISR(current_block) || emergency_stop.IsTriggered()) {
+  if (quickstop.CheckInISR(nullptr) || emergency_stop.IsTriggered()) {
+    abort_current_block = false;
+    axis_did_move = 0;
+    sif_valid = false;
+    axis_mng.reqAbort = true;
+    // interval = 1 ms
+    HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
+    return;
+  }
+
+  #if 0
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  if (abort_e_moves) {
+    abort_e_moves = false;
+    if (TEST(axis_did_move, E_AXIS)) {
+      if (current_block) {
+        axis_did_move = 0;
+        current_block = NULL;
+        planner.block_buffer_nonbusy = planner.block_buffer_tail = \
+        planner.block_buffer_planned = planner.block_buffer_head;
+      }
+    }
+    // interval = 1 ms
+    HAL_timer_set_compare(STEP_TIMER_NUM,
+        hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
+  }
+  #endif
+  #endif
 
   // If we must abort the current block, do so!
-  if (abort_current_block) {
+  if (abort_current_block || !Running) {
     axis_did_move = 0;
     abort_current_block = false;
     sif_valid = false;
