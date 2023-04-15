@@ -28,7 +28,7 @@ public:
   bool isFull();
 
 public:
-  static const uint32_t SIZE = 16;
+  static const uint32_t SIZE = 32;
 
 public:
   union StepFlagData buf[SIZE];
