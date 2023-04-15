@@ -48,7 +48,7 @@ void MoveQueue::reset() {
 
 bool MoveQueue::genMoves(block_t* block) {
   if (getFreeMoveSize() < 3) {
-    LOG_I("Move not enough\r\n");
+    // LOG_I("Move not enough\r\n");
     return false;
   }
 

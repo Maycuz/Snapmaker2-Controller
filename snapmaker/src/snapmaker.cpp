@@ -267,6 +267,15 @@ static void hmi_task(void *param) {
   }
 }
 
+void motion_info_log(void) {
+  static uint32_t last_milliseconds = 0;
+  if (PENDING(millis(), last_milliseconds+1000))
+    return;
+  last_milliseconds = millis();
+
+  LOG_I("Steps seq's use rate: %.1f%%, prepare time %f ms, delta_e %f\r\n",
+        100.0 * steps_seq.count() / steps_seq.SIZE, steps_seq.getBufMilliseconds(), axis_mng.e_sp->delta_e);
+}
 
 static void heartbeat_task(void *param) {
   //SSTP_Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
@@ -288,6 +297,8 @@ static void heartbeat_task(void *param) {
       upgrade.Check();
       canhost.SendHeartbeat();
     }
+
+    motion_info_log();
 
     // sleep for 10ms
     vTaskDelay(pdMS_TO_TICKS(10));
