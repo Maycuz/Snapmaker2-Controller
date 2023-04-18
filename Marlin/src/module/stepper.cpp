@@ -459,8 +459,8 @@ void Stepper::set_directions() {
 
   // 747 DEBUG, allways just for E0
   if (motor_direction(_AXIS(E))) {
-    count_direction[_AXIS(E)] = -1;
     REV_E_DIR(0);
+    count_direction[_AXIS(E)] = -1;
   }
   else {
     NORM_E_DIR(0);
@@ -1357,6 +1357,8 @@ void Stepper::ts_isr() {
   return;
   #endif
 
+  bool recursion = false;
+
   // Program timer compare for the maximum period, so it does NOT
   // flag an interrupt while this ISR is running - So changes from small
   // periods to big periods are respected and the timer does not reset to 0
@@ -1410,9 +1412,8 @@ void Stepper::ts_isr() {
     return ;
   }
 
-  int axis_stop = -1;
+  int fall_edge_axis = -1;
   if (sif_valid) {
-
     // Set direction
     if (step_time_dir.dir) {
       CBI(current_direction_bits, step_time_dir.axis);
@@ -1422,7 +1423,6 @@ void Stepper::ts_isr() {
     }
     if (current_direction_bits != last_direction_bits) {
       last_direction_bits = current_direction_bits;
-      // set_directions(current_direction_bits);
       set_directions();
     }
     // Update axies move bits
@@ -1430,62 +1430,30 @@ void Stepper::ts_isr() {
       axis_did_move = step_time_dir.move_bits;
     }
 
-    bool popFlag = false;
-    struct StepFlagData flag_data;
     // Out put plus
     if (X_AXIS == step_time_dir.axis) {
       PULSE_START(X);
       PULSE_PREP(X);
-      if (step_time_dir.sync) {
-        steps_flag.popQueue(&flag_data);
-        count_position[X_AXIS] = flag_data.sync_pos;
-        popFlag = true;
-      }
       // PULSE_STOP(X);
-      axis_stop = X_AXIS;
+      fall_edge_axis = X_AXIS;
     }
     else if(Y_AXIS == step_time_dir.axis) {
       PULSE_START(Y);
       PULSE_PREP(Y);
-      if (step_time_dir.sync) {
-        steps_flag.popQueue(&flag_data);
-        count_position[Y_AXIS] = flag_data.sync_pos;
-        popFlag = true;
-      }
       // PULSE_STOP(Y);
-      axis_stop = Y_AXIS;
+      fall_edge_axis = Y_AXIS;
     }
     else if(Z_AXIS == step_time_dir.axis) {
       PULSE_START(Z);
       PULSE_PREP(Z);
-      if (step_time_dir.sync) {
-        steps_flag.popQueue(&flag_data);
-        count_position[Z_AXIS] = flag_data.sync_pos;
-        popFlag = true;
-      }
       // PULSE_STOP(Z);
-      axis_stop = Z_AXIS;
+      fall_edge_axis = Z_AXIS;
     }
     else if(E_AXIS == step_time_dir.axis) {
       PULSE_START(E);
       PULSE_PREP(E);
-      if (step_time_dir.sync) {
-        steps_flag.popQueue(&flag_data);
-        count_position[E_AXIS] = flag_data.sync_pos;
-        popFlag = true;
-      }
       // PULSE_STOP(E);
-      axis_stop = E_AXIS;
-    }
-
-    // update file pos
-    if (step_time_dir.update_file_pos) {
-      if (popFlag)
-        pause_block.filePos = flag_data.file_pos;
-      else {
-        steps_flag.popQueue(&flag_data);
-        pause_block.filePos = flag_data.file_pos;
-      }
+      fall_edge_axis = E_AXIS;
     }
   }
 
@@ -1525,26 +1493,29 @@ void Stepper::ts_isr() {
   }
 
   if (sif_valid) {
+
+    struct StepFlagData flag_data;
+    if (step_time_dir.sync || step_time_dir.update_file_pos) {
+      steps_flag.popQueue(&flag_data);
+    }
+    // update file pos
+    if (step_time_dir.update_file_pos) {
+      pause_block.filePos = flag_data.file_pos;
+    }
+    // sync axis pos
+    if (step_time_dir.sync) {
+      count_position[step_time_dir.axis] = flag_data.sync_pos;
+      recursion = true;
+      goto __out_pluse_falling_edge;
+    }
+
     if (step_time_dir.itv > (HAL_timer_get_count(STEP_TIMER_NUM) + 4 * STEPPER_TIMER_TICKS_PER_US)) {
       HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv - HAL_timer_get_count(STEP_TIMER_NUM)));
+      goto __out_pluse_falling_edge;
     }
     else {
-      // Too short for ISR, just output this pluse
-      if (X_AXIS == axis_stop) {
-        PULSE_STOP(X);
-      }
-      else if(Y_AXIS == axis_stop) {
-        PULSE_STOP(Y);
-      }
-      else if(Z_AXIS == axis_stop) {
-        PULSE_STOP(Z);
-      }
-      else if(E_AXIS == axis_stop) {
-        PULSE_STOP(E);
-      }
-
-      HAL_timer_isr_prologue(STEP_TIMER_NUM);
-      return ts_isr();
+      recursion = true;
+      goto __out_pluse_falling_edge;
     }
   }
   else {
@@ -1558,19 +1529,23 @@ void Stepper::ts_isr() {
     #endif
   }
 
-  if (X_AXIS == axis_stop) {
+__out_pluse_falling_edge:
+  if (X_AXIS == fall_edge_axis) {
     PULSE_STOP(X);
   }
-  else if(Y_AXIS == axis_stop) {
+  else if(Y_AXIS == fall_edge_axis) {
     PULSE_STOP(Y);
   }
-  else if(Z_AXIS == axis_stop) {
+  else if(Z_AXIS == fall_edge_axis) {
     PULSE_STOP(Z);
   }
-  else if(E_AXIS == axis_stop) {
+  else if(E_AXIS == fall_edge_axis) {
     PULSE_STOP(E);
   }
-
+  if (recursion) {
+    HAL_timer_isr_prologue(STEP_TIMER_NUM);
+    return ts_isr();
+  }
 }
 
 #ifdef CPU_32_BIT
