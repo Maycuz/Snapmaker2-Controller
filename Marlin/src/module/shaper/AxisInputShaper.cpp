@@ -681,7 +681,7 @@ void AxisMng::update_shaper(void) {
   LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
 
   LOG_I("Adding a empty move after update\r\n");
-  moveQueue.addEmptyMove(EMPTY_MOVE_TIME);
+  moveQueue.addEmptyMove(2 * max_shaper_window_tick);
   axis_mng.prepare(moveQueue.move_tail);
 }
 

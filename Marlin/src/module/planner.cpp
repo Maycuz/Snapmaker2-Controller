@@ -1229,7 +1229,7 @@ void Planner::shaped_loop() {
     step_generating = false;
 
     LOG_I("Adding a empty move after abort\r\n");
-    moveQueue.addEmptyMove(EMPTY_MOVE_TIME);
+    moveQueue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
     axis_mng.prepare(moveQueue.move_tail);
   }
 
@@ -1301,7 +1301,7 @@ void Planner::shaped_loop() {
       block_num == 0 &&
       steps_seq.getBufMilliseconds() < 5) {
     LOG_I("### No more motion, add a empty move for shaper finish\r\n");
-    moveQueue.addEmptyMove(EMPTY_MOVE_TIME);
+    moveQueue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
     #ifdef SHAPER_LOG_ENABLE
     moveQueue.log();
     #endif
