@@ -668,6 +668,8 @@ void GcodeSuite::execute_command(void) {
         case 540: M540(); break;                                  // M540: Set abort on endstop hit for SD printing
       #endif
 
+      case 593: M593(); break;
+
       #if HAS_BED_PROBE
         case 851: M851(); break;                                  // M851: Set Z Probe Z Offset
       #endif

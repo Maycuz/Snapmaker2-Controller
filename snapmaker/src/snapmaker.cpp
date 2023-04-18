@@ -273,7 +273,9 @@ void motion_info_log(void) {
   // LOG_I("Steps seq's use rate: %.1f%%, prepare time %f ms, delta_e %f\r\n",
   //       100.0 * steps_seq.count() / steps_seq.SIZE, steps_seq.getBufMilliseconds(), axis_mng.e_sp->delta_e);
 
-  LOG_I("file pos %u\n", stepper.pause_block.filePos);
+  // LOG_I("block file pos %u\n", stepper.pause_block.filePos);
+  // LOG_I("stepper pos: %d %d %d %d\n",
+  //   stepper.position(X_AXIS), stepper.position(Y_AXIS), stepper.position(Z_AXIS), stepper.position(E_AXIS));
 }
 
 static void heartbeat_task(void *param) {

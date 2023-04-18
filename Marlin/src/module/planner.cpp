@@ -1200,11 +1200,9 @@ bool Planner::genStep() {
       steps_seq.pushQueue(step_info.time_dir);
       have_gen = true;
       if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
-
         // if (E_AXIS == step_info.time_dir.axis) {
         //   LOG_I("2) E file pos update to %u\n", step_info.flag_data.file_pos);
         // }
-
         if (!steps_flag.pushQueue(step_info.flag_data)) {
           LOG_E("### steps flag have no space\r\n");
           while(1);

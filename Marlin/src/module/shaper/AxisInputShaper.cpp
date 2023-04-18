@@ -10,6 +10,7 @@
 
 AxisMng axis_mng;
 struct pos_trace pt;
+const char* input_shaper_type_name[] = {"none", "ei", "ei2", "ei3", "mzv", "zv", "zvd", "zvdd", "zvddd"};
 
 
 void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, uint32_t ms2t) {
@@ -458,7 +459,7 @@ bool AxisInputShaper::generateShapedFuncParams() {
   // A sync
   // if (0 == shaper_window.wind_tick && InputShaperType::none == type) {
   if (INVALID_SYNC_POS != sync_pos) {
-    LOG_I("Axis %d sync in gen shape fun param\n", axis);
+    // LOG_I("Axis %d sync in gen shape fun param\n", axis);
     tgf_1.flag = TimeGenFunc::TGF_SYNC_FLAG;
     return true;
   }
@@ -644,6 +645,36 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
 }
 
+bool AxisMng::input_shaper_set(int axis, int type, float freq, float dampe) {
+
+  if (axis != X_AXIS && axis != Y_AXIS)
+    return E_PARAM;
+
+  AxisInputShaper* axis_input_shaper = &axes[axis];
+  if (freq != axis_input_shaper->frequency || dampe != axis_input_shaper->zeta || type != (int)axis_input_shaper->type) {
+    // planner.synchronize();
+    // axisManager.initAxisShaper();
+    // axis_input_shaper->setConfig(type, freq, dampe);
+    // axisManager.abort();
+  }
+  LOG_I("setting: axis: %d type: %s, frequency: %lf, zeta: %lf\n", axis, input_shaper_type_name[type], freq, dampe);
+
+  return E_SUCCESS;
+}
+
+bool AxisMng::input_shaper_get(int axis, int &type, float &freq, float &dampe) {
+
+  if (axis != X_AXIS && axis != Y_AXIS)
+    return E_PARAM;
+
+  AxisInputShaper* axis_input_shaper = &axes[axis];
+  type = (int)axis_input_shaper->type;
+  freq = axis_input_shaper->frequency;
+  dampe = axis_input_shaper->zeta;
+
+  return E_SUCCESS;
+}
+
 bool AxisMng::prepare(uint8_t m_idx) {
 
   max_shaper_window_tick = 0;
@@ -694,7 +725,7 @@ bool AxisMng::getNextStep(StepInfo &step_info) {
     step_info.time_dir.sync = 0;
     if (INVALID_SYNC_POS != dm->sync_pos) {
       step_info.time_dir.sync = 1;
-      LOG_I("Axis %d sync in gen next step\n", dm->axis);
+      // LOG_I("Axis %d sync in gen next step\n", dm->axis);
       // dm->sync_pos_rb.pop(step_info.flag_data.sync_pos);
       step_info.flag_data.sync_pos = dm->sync_pos;
       dm->sync_pos = INVALID_SYNC_POS;

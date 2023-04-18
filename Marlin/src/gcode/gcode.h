@@ -768,6 +768,8 @@ private:
     static void M540();
   #endif
 
+  static void M593();
+
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
     static void M600();
     static void M603();

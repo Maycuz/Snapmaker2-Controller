@@ -120,7 +120,6 @@ public:
   circular_buffer<TimeGenFunc> tgf_rb;
   #endif
 
-private:
   MoveQueue *mq;
   InputShaperType type;
   ShaperPluse origin_pluse;
@@ -138,6 +137,8 @@ class AxisMng
 
 public:
   void init(MoveQueue *mq, uint32_t m2t);
+  bool input_shaper_set(int axis, int type, float freq, float dampe);
+  bool input_shaper_get(int axis, int &type, float &freq, float &dampe);
   bool prepare(uint8_t m_idx);
   void logShaperWindows();
   void insertDM(AxisInputShaper *axis);

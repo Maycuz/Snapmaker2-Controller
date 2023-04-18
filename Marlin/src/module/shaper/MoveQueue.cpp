@@ -56,8 +56,7 @@ bool MoveQueue::genMoves(block_t* block) {
   }
 
   if (block->flag & BLOCK_FLAG_SYNC_POSITION) {
-    // 747_err
-    // addSyncMove(block->position);
+    addSyncMove(block->position);
     return true;
   }
 
@@ -196,7 +195,7 @@ void MoveQueue::addEmptyMove(uint32_t time) {
   addMove(0, 0, 0, 0, ZERO_AXIS_R, time);
 }
 
-void MoveQueue::addSyncMove(int sync_pos[]) {
+void MoveQueue::addSyncMove(int32_t *sync_pos) {
   Move *add_move = addMove(0, 0, 0, 0, ZERO_AXIS_R, 0);
   add_move->flag = BLOCK_FLAG_SYNC_POSITION;
   LOOP_SHAPER_AXES(i) {

@@ -54,7 +54,7 @@ public:
 
   void reset();
   void addEmptyMove(uint32_t time);
-  void addSyncMove(int sync_pos[]);
+  void addSyncMove(int32_t sync_pos[]);
   Move *addMove(float sv, float ev, float acc, float dist, float axis_r[], uint32_t t);
   bool genMoves(block_t* block);
   float getAxisPosition(int m_idx, int axis, uint32_t time);
