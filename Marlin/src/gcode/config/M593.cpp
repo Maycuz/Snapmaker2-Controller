@@ -26,7 +26,7 @@
 #include "../../../../snapmaker/src/module/module_base.h"
 
 void report_M593(void) {
-  // 747 TODO
+ axis_mng.log_xy_shpaer();
 }
 
 /**
@@ -46,44 +46,39 @@ void report_M593(void) {
  *      D: damping ration
  */
 void GcodeSuite::M593() {
+  bool x = parser.seen('X');
+  bool y = parser.seen('Y');
 
-    bool update = false;
-    bool x = parser.seen('X');
-    bool y = parser.seen('Y');
-    if (!x && !y) {
-      x = true;
-      y = true;
-    }
+  if (parser.seen('R')) {
+    axis_mng.reset_shaper();
+    report_M593();
+    return;
+  }
 
-    if (x) {
-      AxisInputShaper* axis_input_shaper = &axis_mng.axes[X_AXIS];
-      float frequency = parser.floatval('F', axis_input_shaper->frequency);
-      float zeta = parser.floatval('D', axis_input_shaper->zeta);
-      int type = parser.byteval('P', (int)axis_input_shaper->type);
-      if (frequency != axis_input_shaper->frequency || zeta != axis_input_shaper->zeta || type != (int)axis_input_shaper->type) {
-        update = true;
-      }
-      if (update) {
-        axis_input_shaper->setConfig(type, frequency, zeta);
-      }
-      // LOG
-    }
-    if (y) {
-      AxisInputShaper* axis_input_shaper = &axis_mng.axes[Y_AXIS];
-      float frequency = parser.floatval('F', axis_input_shaper->frequency);
-      float zeta = parser.floatval('D', axis_input_shaper->zeta);
-      int type = parser.floatval('P', (int)axis_input_shaper->type);
-      if (frequency != axis_input_shaper->frequency || zeta != axis_input_shaper->zeta || type != (int)axis_input_shaper->type) {
-          update = true;
-      }
-      if (update) {
-        axis_input_shaper->setConfig(type, frequency, zeta);
-      }
-    }
+  if (!x && !y) {
+    x = true;
+    y = true;
+  }
 
-    if (update) {
-        // planner.synchronize();
-        // axisManager.initAxisShaper();
-        // axisManager.abort();
-    }
+  planner.synchronize();
+  if (x) {
+    AxisInputShaper *axis_input_shaper = axis_mng.x_sp;
+    float frequency = parser.floatval('F', axis_input_shaper->frequency);
+    float zeta = parser.floatval('D', axis_input_shaper->zeta);
+    int type = parser.byteval('P', (int)axis_input_shaper->type);
+    axis_mng.input_shaper_set(X_AXIS, type, frequency, zeta);
+  }
+
+  if (y) {
+    AxisInputShaper *axis_input_shaper = axis_mng.y_sp;
+    float frequency = parser.floatval('F', axis_input_shaper->frequency);
+    float zeta = parser.floatval('D', axis_input_shaper->zeta);
+    int type = parser.byteval('P', (int)axis_input_shaper->type);
+    axis_mng.input_shaper_set(Y_AXIS, type, frequency, zeta);
+  }
+
+  planner.synchronize();
+  axis_mng.abort();
+  axis_mng.update_shaper();
+  report_M593();
 }

@@ -15,6 +15,10 @@
 #define INVALID_FILE_POS              (0xFFFFFFFF)
 #define INVALID_SYNC_POS              (0x7FFFFFFF)
 
+#define SP_DEFT_TYPE                  (InputShaperType::ei)
+#define SP_DEFT_FREQ                  (50)
+#define SP_DEFT_ZETA                  (0.1)
+
 
 enum class InputShaperType : int
 {
@@ -82,7 +86,9 @@ class AxisInputShaper
 {
 public:
   AxisInputShaper(){};
-  void init(int axis, MoveQueue *mq, InputShaperType type, uint32_t s2t);
+  void init(int axis, MoveQueue *mq, InputShaperType type, float freq, float zeta, uint32_t s2t);
+  void shaper_init(void);
+  void shaper_init(InputShaperType type, float frequency, float zeta);
   void reset();
   void setConfig(int type, float frequency, float zeta);
   bool prepare(int m_idx);
@@ -90,6 +96,8 @@ public:
   void logShaperWindow();
   uint32_t getShaperWindown();
   bool alignToMoveHead();
+  void enable();
+  void disable();
 
 private:
   void shiftPulses();
@@ -121,11 +129,11 @@ public:
   #endif
 
   MoveQueue *mq;
-  InputShaperType type;
+  InputShaperType type, backup_type;
+  float frequency;
+  float zeta;
   ShaperPluse origin_pluse;
   ShaperPluse shift_pluse;
-  float frequency = 50;
-  float zeta = 0.1;
   uint32_t ms2tick;
   float tgf_coef_a_sum;
   float mm_per_step;
@@ -137,8 +145,13 @@ class AxisMng
 
 public:
   void init(MoveQueue *mq, uint32_t m2t);
+  void update_shaper(void);
   bool input_shaper_set(int axis, int type, float freq, float dampe);
   bool input_shaper_get(int axis, int &type, float &freq, float &dampe);
+  void enable_shaper(void);
+  void disable_shaper(void);
+  void reset_shaper(void);
+  void log_xy_shpaer(void);
   bool prepare(uint8_t m_idx);
   void logShaperWindows();
   void insertDM(AxisInputShaper *axis);

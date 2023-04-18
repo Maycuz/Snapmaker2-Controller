@@ -13,13 +13,23 @@ struct pos_trace pt;
 const char* input_shaper_type_name[] = {"none", "ei", "ei2", "ei3", "mzv", "zv", "zvd", "zvdd", "zvddd"};
 
 
-void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, uint32_t ms2t) {
+void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, float freq, float zeta, uint32_t ms2t) {
   this->axis = axis;
   this->mq = mq;
-  this->type = type;
   this->ms2tick = ms2t;
   this->mm_per_step = 1.0;
   this->mm_per_half_step = 0.5;
+  this->backup_type = this->type = type;
+  this->frequency = freq;
+  this->zeta = zeta;
+  shaper_init(this->type, this->frequency, this->zeta);
+}
+
+void AxisInputShaper::shaper_init(void) {
+  return shaper_init(type, frequency, zeta);
+}
+
+void AxisInputShaper::shaper_init(InputShaperType type, float frequency, float zeta) {
   origin_pluse.n = 0;
   switch (type) {
     case InputShaperType::none: {
@@ -281,6 +291,14 @@ uint32_t AxisInputShaper::getShaperWindown() {
 bool AxisInputShaper::alignToMoveHead() {
   // Shaper windown align to the newest move. No move have
   return mq->nextMoveIndex(shaper_window.pluse[shaper_window.pls_cnt-1].m_idx) == mq->move_head;
+}
+
+void AxisInputShaper::enable() {
+  type = backup_type;
+}
+
+void AxisInputShaper::disable() {
+  backup_type = type;
 }
 
 void AxisInputShaper::shiftPulses() {
@@ -624,11 +642,11 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   b_sp = &axes[B_AXIS];
   e_sp = &axes[E_AXIS];
 
-  x_sp->init(X_AXIS, mq, InputShaperType::ei, ms2t);
-  y_sp->init(Y_AXIS, mq, InputShaperType::ei, ms2t);
-  z_sp->init(Z_AXIS, mq, InputShaperType::none, ms2t);
-  b_sp->init(B_AXIS, mq, InputShaperType::none, ms2t);
-  e_sp->init(E_AXIS, mq, InputShaperType::none, ms2t);
+  x_sp->init(X_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
+  y_sp->init(Y_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
+  z_sp->init(Z_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
+  b_sp->init(B_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
+  e_sp->init(E_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
 
   uint32_t sw;
   max_shaper_window_tick = 0;
@@ -645,34 +663,84 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
 }
 
-bool AxisMng::input_shaper_set(int axis, int type, float freq, float dampe) {
+void AxisMng::update_shaper(void) {
 
-  if (axis != X_AXIS && axis != Y_AXIS)
-    return E_PARAM;
+  max_shaper_window_tick = 0;
+  max_shaper_window_right_delta_tick = 0;
 
-  AxisInputShaper* axis_input_shaper = &axes[axis];
-  if (freq != axis_input_shaper->frequency || dampe != axis_input_shaper->zeta || type != (int)axis_input_shaper->type) {
-    // planner.synchronize();
-    // axisManager.initAxisShaper();
-    // axis_input_shaper->setConfig(type, freq, dampe);
-    // axisManager.abort();
+  uint32_t sw;
+  LOOP_SHAPER_AXES(i) {
+    axes[i].shaper_init();
+    sw = axes[i].getShaperWindown();
+    if (max_shaper_window_tick < sw)
+      max_shaper_window_tick = sw;
+    sw = axes[i].right_delta * ms2tick;
+    if (max_shaper_window_right_delta_tick < sw)
+      max_shaper_window_right_delta_tick = sw;
   }
-  LOG_I("setting: axis: %d type: %s, frequency: %lf, zeta: %lf\n", axis, input_shaper_type_name[type], freq, dampe);
+  LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
 
-  return E_SUCCESS;
+  LOG_I("Adding a empty move after update\r\n");
+  moveQueue.addEmptyMove(EMPTY_MOVE_TIME);
+  axis_mng.prepare(moveQueue.move_tail);
+}
+
+bool AxisMng::input_shaper_set(int axis, int type, float freq, float dampe) {
+  if (X_AXIS <= axis && axis <= E_AXIS) {
+    AxisInputShaper* axis_input_shaper = &axes[axis];
+    axis_input_shaper->setConfig(type, freq, dampe);
+    LOG_I("setting: axis: %d type: %s, frequency: %lf, zeta: %lf\n", axis, input_shaper_type_name[type], freq, dampe);
+    return true;
+  }
+  else {
+    return false;
+  }
 }
 
 bool AxisMng::input_shaper_get(int axis, int &type, float &freq, float &dampe) {
+  if (X_AXIS <= axis && axis <= E_AXIS) {
+    AxisInputShaper* axis_input_shaper = &axes[axis];
+    type = (int)axis_input_shaper->type;
+    freq = axis_input_shaper->frequency;
+    dampe = axis_input_shaper->zeta;
+    return true;
+  }
+  else {
+    return false;
+  }
+}
 
-  if (axis != X_AXIS && axis != Y_AXIS)
-    return E_PARAM;
+void AxisMng::enable_shaper(void) {
+  planner.synchronize();
+  abort();
 
-  AxisInputShaper* axis_input_shaper = &axes[axis];
-  type = (int)axis_input_shaper->type;
-  freq = axis_input_shaper->frequency;
-  dampe = axis_input_shaper->zeta;
+  LOG_I("All axis enable\n");
+  LOOP_SHAPER_AXES(i) {
+    axes[i].enable();
+  }
+  update_shaper();
+}
 
-  return E_SUCCESS;
+void AxisMng::disable_shaper(void) {
+  planner.synchronize();
+  abort();
+
+  LOG_I("All axis disable\n");
+  LOOP_SHAPER_AXES(i) {
+    axes[i].disable();
+  }
+  update_shaper();
+}
+
+void AxisMng::reset_shaper(void) {
+  planner.synchronize();
+  abort();
+  init(mq, ms2tick);
+}
+
+void AxisMng::log_xy_shpaer(void) {
+  LOG_I("X type: %s, frequency: %lf, zeta: %lf\n", input_shaper_type_name[int(x_sp->type)], x_sp->frequency, x_sp->zeta);
+  LOG_I("Y type: %s, frequency: %lf, zeta: %lf\n", input_shaper_type_name[int(y_sp->type)], y_sp->frequency, y_sp->zeta);
 }
 
 bool AxisMng::prepare(uint8_t m_idx) {
@@ -765,9 +833,6 @@ void AxisMng::abort() {
   LOOP_SHAPER_AXES(i) {
     axes[i].reset();
   }
-  LOG_I("Adding a empty move after abort\r\n");
-  moveQueue.addEmptyMove(EMPTY_MOVE_TIME);
-  axis_mng.prepare(moveQueue.move_tail);
 }
 
 void AxisMng::updateOldestPluesTick() {

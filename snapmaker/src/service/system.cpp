@@ -614,6 +614,8 @@ ErrCode SystemService::StartWork(TriggerSource s) {
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
   case MODULE_TOOLHEAD_DUALEXTRUDER:
+    // shpaer enable
+    axis_mng.enable_shaper();
     if (runout.is_filament_runout()) {
       fault_flag_ |= FAULT_FLAG_FILAMENT;
       LOG_E("No filemant!\n");
@@ -623,9 +625,12 @@ ErrCode SystemService::StartWork(TriggerSource s) {
 
   case MODULE_TOOLHEAD_LASER:
   case MODULE_TOOLHEAD_LASER_10W:
+    // shaper disable
+    axis_mng.disable_shaper();
     is_laser_on = false;
     is_waiting_gcode = false;
   case MODULE_TOOLHEAD_CNC:
+    // shaper disable
     if (enclosure.DoorOpened()) {
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
       LOG_E("Door is opened!\n");

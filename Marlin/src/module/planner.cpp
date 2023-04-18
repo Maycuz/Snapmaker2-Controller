@@ -1227,6 +1227,10 @@ void Planner::shaped_loop() {
     axis_mng.abort();
     axis_mng.reqAbort = false;
     step_generating = false;
+
+    LOG_I("Adding a empty move after abort\r\n");
+    moveQueue.addEmptyMove(EMPTY_MOVE_TIME);
+    axis_mng.prepare(moveQueue.move_tail);
   }
 
   xSemaphoreTake(plan_buffer_lock, portMAX_DELAY);
