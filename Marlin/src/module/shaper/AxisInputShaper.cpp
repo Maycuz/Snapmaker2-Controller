@@ -736,6 +736,9 @@ void AxisMng::reset_shaper(void) {
   planner.synchronize();
   abort();
   init(mq, ms2tick);
+
+  moveQueue.addEmptyMove(2 * max_shaper_window_tick);
+  axis_mng.prepare(moveQueue.move_tail);
 }
 
 void AxisMng::log_xy_shpaer(void) {
