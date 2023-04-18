@@ -235,11 +235,15 @@ void QuickStopService::Park() {
       current_position[E_AXIS] -= retract;
       line_to_current_position(60);
       // if we are not in power loss, retrace E quickly
+      // 747 log
+      LOG_I("Parking Z\n");
       move_to_limited_z(Z_MAX_POS, 20);
     }
 
     // move X to max position of home dir
     // move Y to max position
+    // 747 log
+    LOG_I("Parking XY\n");
     if (X_HOME_DIR > 0)
       move_to_limited_xy(soft_endstop[X_AXIS].max, Y_MAX_POS, 60);
     else

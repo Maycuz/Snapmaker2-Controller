@@ -23,6 +23,7 @@
 
 #include "../common/config.h"
 #include "../common/error.h"
+#include "../common/debug.h"
 
 #include "quick_stop.h"
 

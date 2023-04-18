@@ -170,13 +170,12 @@ void enqueue_hmi_to_marlin() {
   // sync. fetch as much command as possible
   while (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0) {
     // fetch from buffer queue
-    strcpy(command_queue[cmd_queue_index_w],
-           hmi_command_queue[hmi_cmd_queue_index_r]);
+    // Why so messy format?
+    // 747 change
+    strcpy(command_queue[cmd_queue_index_w], hmi_command_queue[hmi_cmd_queue_index_r]);
     Screen_send_ok[cmd_queue_index_w] = true;
-    Screen_send_ok_opcode[cmd_queue_index_w] =
-        hmi_send_opcode_queue[hmi_cmd_queue_index_r];
-    CommandLine[cmd_queue_index_w] =
-        hmi_commandline_queue[hmi_cmd_queue_index_r];
+    Screen_send_ok_opcode[cmd_queue_index_w] = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
+    CommandLine[cmd_queue_index_w] = hmi_commandline_queue[hmi_cmd_queue_index_r];
     send_ok[cmd_queue_index_w] = false;
     cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
 
@@ -290,6 +289,7 @@ void ack_gcode_event(uint8_t event_id, uint32_t line) {
 
 void check_and_request_gcode_again() {
   if (gcode_request_status == GCODE_REQ_WAITING) {
+    // 747 mark error
     if ((gcode_pack_req_timeout + 1000) > millis()) {
       return;
     }

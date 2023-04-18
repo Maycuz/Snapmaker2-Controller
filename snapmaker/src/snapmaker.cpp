@@ -167,9 +167,6 @@ static void main_loop(void *param) {
 
   cur_mills = millis() - 3000;
 
-  // Shapper init
-
-
   for (;;) {
 
     // receive and execute one command, or push Gcode into Marlin queue
@@ -273,8 +270,10 @@ void motion_info_log(void) {
     return;
   last_milliseconds = millis();
 
-  LOG_I("Steps seq's use rate: %.1f%%, prepare time %f ms, delta_e %f\r\n",
-        100.0 * steps_seq.count() / steps_seq.SIZE, steps_seq.getBufMilliseconds(), axis_mng.e_sp->delta_e);
+  // LOG_I("Steps seq's use rate: %.1f%%, prepare time %f ms, delta_e %f\r\n",
+  //       100.0 * steps_seq.count() / steps_seq.SIZE, steps_seq.getBufMilliseconds(), axis_mng.e_sp->delta_e);
+
+  LOG_I("file pos %u\n", stepper.pause_block.filePos);
 }
 
 static void heartbeat_task(void *param) {

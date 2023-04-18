@@ -9,7 +9,7 @@ void StepFlag::reset() {
   head = tail = 0;
 }
 
-bool StepFlag::pushQueue(union StepFlagData &fd) {
+bool StepFlag::pushQueue(struct StepFlagData &fd) {
   if (!isFull()) {
     buf[head] = fd;
     head = (head + 1) % SIZE;
@@ -20,7 +20,7 @@ bool StepFlag::pushQueue(union StepFlagData &fd) {
   }
 }
 
-bool StepFlag::popQueue(union StepFlagData *fd) {
+bool StepFlag::popQueue(struct StepFlagData *fd) {
   if (!isEmpty()) {
     *fd = buf[tail];
     tail = (tail + 1) % SIZE;

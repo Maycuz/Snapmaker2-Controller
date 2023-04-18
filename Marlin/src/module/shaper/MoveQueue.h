@@ -34,6 +34,7 @@ public:
   uint32_t t = 0;
   float delta_v;
   bool use_advance;
+  uint32_t file_pos;
 
 public:
   void log(uint8_t idx);
@@ -77,6 +78,7 @@ public:
   float last_mq_pos[NUM_AXIS];
   uint32_t max_shape_window_tick;
   uint32_t max_shape_window_right_delta_tick;
+  uint32_t file_pos;
 };
 
 extern MoveQueue moveQueue;

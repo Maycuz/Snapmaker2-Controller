@@ -126,8 +126,10 @@ bool MoveQueue::genMoves(block_t* block) {
   axis_r[B_AXIS] = block->axis_r[B_AXIS];
   axis_r[E_AXIS] = block->axis_r[E_AXIS];
 
+  file_pos = block->filePos;
   if (accelDistance > EPSILON) {
     Move * am = addMove(entry_speed, cruise_speed, acceleration, accelDistance, axis_r, acc_tick);
+    am->file_pos = file_pos;
     #if ENABLED(LIN_ADVANCE)
     float K = block->use_advance_lead ? planner.extruder_advance_K[active_extruder] * 1000 : 0;
     am->delta_v = IS_ZERO(acceleration) ? 0 : K * acceleration;
@@ -137,6 +139,7 @@ bool MoveQueue::genMoves(block_t* block) {
   if (plateau > EPSILON) {
     uint32_t plateau_tick = ms2tick * plateau * i_cruise_speed;
     Move * am = addMove(cruise_speed, cruise_speed, 0, plateau, axis_r, plateau_tick);
+    am->file_pos = file_pos;
     #if ENABLED(LIN_ADVANCE)
     am->delta_v = 0.0;
     am->use_advance = false;
@@ -144,6 +147,7 @@ bool MoveQueue::genMoves(block_t* block) {
   }
   if (decelDistance > EPSILON) {
     Move * am = addMove(cruise_speed, leave_speed, -acceleration, decelDistance, axis_r, decel_tick);
+    am->file_pos = file_pos;
     #if ENABLED(LIN_ADVANCE)
     float K = block->use_advance_lead ? planner.extruder_advance_K[active_extruder] * 1000 : 0;
     am->delta_v = IS_ZERO(acceleration) ? 0 : K * (-acceleration);
@@ -164,6 +168,7 @@ Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float dis
   move.accelerate = accelerate;
   move.distance = distance;
   move.t = t;
+  move.file_pos = file_pos;
 
   move.axis_r[X_AXIS] = axis_r[X_AXIS];
   move.axis_r[Y_AXIS] = axis_r[Y_AXIS];

@@ -241,6 +241,7 @@ extern uint8_t axis_to_port[X_TO_E];
 class Stepper {
 
   public:
+    static block_t pause_block;
     static bool sif_valid;
     static uint32_t wait_sif_countdown;
     static struct StepTimeDir step_time_dir;

@@ -438,6 +438,16 @@ bool AxisInputShaper::moveShaperWindowToNext() {
   }
 
   cls_p.m_idx = cls_p_m_idx;
+  // First pluse move to next move, update file pos
+  if (0 == shaper_window.t_cls_pls) {
+    file_pos = mq->moves[cls_p.m_idx].file_pos;
+    // if (E_AXIS == axis) {
+    //   LOG_I("1) E file pos update to %u\n", file_pos);
+    // }
+  }
+  else {
+    file_pos = INVALID_FILE_POS;
+  }
   return true;
 }
 
@@ -687,6 +697,12 @@ bool AxisMng::getNextStep(StepInfo &step_info) {
       step_info.time_dir.sync = 1;
       dm->sync_pos_rb.pop(step_info.flag_data.sync_pos);
     }
+    step_info.time_dir.update_file_pos = 0;
+    if (E_AXIS == dm->axis && INVALID_FILE_POS != dm->file_pos) {
+      step_info.time_dir.update_file_pos = 1;
+      step_info.flag_data.file_pos = dm->file_pos;
+      dm->file_pos = INVALID_FILE_POS;
+    }
 
     dm->sync_trigger_flag = false;
     cur_print_tick = dm->print_tick;
@@ -725,17 +741,14 @@ void AxisMng::updateOldestPluesTick() {
   uint32_t shaper_window_tick = axes[0].shaper_window.tick;
   uint32_t left_plues_tick = shaper_window_tick + LROUND((-axes[0].left_delta * ms2tick));
   uint32_t opt = left_plues_tick;
-  // uint8_t axis_index = 0;
   LOOP_SHAPER_AXES(i) {
     shaper_window_tick = axes[i].shaper_window.tick;
-    left_plues_tick = shaper_window_tick - (axes[i].left_delta * ms2tick);
+    left_plues_tick = shaper_window_tick + LROUND((-axes[i].left_delta * ms2tick));
     if (PENDING(left_plues_tick, opt)) {
       opt = left_plues_tick;
-      // axis_index = i;
     }
   }
   oldest_plues_tick = opt;
-  // LOG_I("oldest_plues_tick update to %d for axis %d\r\n", oldest_plues_tick, axis_index);
 }
 
 AxisInputShaper *AxisMng::findMinPrintTickAxis() {

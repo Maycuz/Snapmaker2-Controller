@@ -5,9 +5,9 @@
 #include "../../../../snapmaker/src/common/debug.h"
 
 
-union StepFlagData {
+struct StepFlagData {
   int         sync_pos;
-  uint8_t     axis_move_bits;
+  uint32_t    file_pos;
 };
 
 struct StepTimeDir{
@@ -15,23 +15,23 @@ struct StepTimeDir{
   uint16_t axis: 4;
   uint16_t dir: 1;
   uint16_t sync: 1;
+  uint16_t update_file_pos: 2;
   uint16_t move_bits: 8;
-  uint16_t :2;
 };
 
 class StepFlag {
 public:
   void reset();
-  bool pushQueue(union StepFlagData &fd);
-  bool popQueue(union StepFlagData *fd);
+  bool pushQueue(struct StepFlagData &fd);
+  bool popQueue(struct StepFlagData *fd);
   bool isEmpty();
   bool isFull();
 
 public:
-  static const uint32_t SIZE = 32;
+  static const uint32_t SIZE = 64;
 
 public:
-  union StepFlagData buf[SIZE];
+  struct StepFlagData buf[SIZE];
   volatile uint32_t head;
   volatile uint32_t tail;
 };
@@ -64,7 +64,7 @@ private:
 
 struct StepInfo {
   struct StepTimeDir time_dir;
-  union StepFlagData flag_data;
+  struct StepFlagData flag_data;
 };
 
 extern StepsSeq steps_seq;

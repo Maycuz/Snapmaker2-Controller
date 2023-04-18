@@ -12,7 +12,7 @@
 #define EMPTY_MOVE_TIME               (100 * STEPPER_TIMER_TICKS_PER_MS)
 #define SHAPER_VIBRATION_REDUCTION    (20)
 #define LOOP_SHAPER_AXES(VAR)         LOOP_S_L_N(VAR, 0, NUM_AXIS)
-
+#define INVALID_FILE_POS              (0xFFFFFFFF)
 
 
 enum class InputShaperType : int
@@ -109,9 +109,11 @@ public:
   uint32_t last_print_tick;
   bool sync_trigger_flag;
   circular_buffer<int> sync_pos_rb;
+  circular_buffer<uint32_t> file_pos_rb;
   float right_delta;              // millisecond
   float left_delta;               // millisecond
   ShaperWindow shaper_window;
+  uint32_t file_pos;
   TimeGenFunc tgf_1, tgf_2;
   float delta_e = 0;
   #ifdef LOG_MOTION_INFO

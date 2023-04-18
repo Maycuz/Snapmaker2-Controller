@@ -134,6 +134,7 @@ Stepper stepper; // Singleton
   uint32_t Stepper::motor_current_setting[3]; // Initialized by settings.load()
 #endif
 
+block_t Stepper::pause_block;
 bool Stepper::sif_valid = false;
 uint32_t Stepper::wait_sif_countdown;
 struct StepTimeDir Stepper::step_time_dir;
@@ -1365,7 +1366,7 @@ void Stepper::ts_isr() {
   // execute to endstop.update(), then we cannot check power loss there.
   // But if power loss happened and ISR cannot get block, no need to check again
   // if (quickstop.CheckInISR(current_block) || emergency_stop.IsTriggered()) {
-  if (quickstop.CheckInISR(nullptr) || emergency_stop.IsTriggered()) {
+  if (quickstop.CheckInISR(&pause_block) || emergency_stop.IsTriggered()) {
     abort_current_block = false;
     axis_did_move = 0;
     sif_valid = false;
@@ -1429,8 +1430,8 @@ void Stepper::ts_isr() {
       axis_did_move = step_time_dir.move_bits;
     }
 
-
-    union StepFlagData flag_data;
+    bool popFlag = false;
+    struct StepFlagData flag_data;
     // Out put plus
     if (X_AXIS == step_time_dir.axis) {
       PULSE_START(X);
@@ -1438,6 +1439,7 @@ void Stepper::ts_isr() {
       if (step_time_dir.sync) {
         steps_flag.popQueue(&flag_data);
         count_position[X_AXIS] = flag_data.sync_pos;
+        popFlag = true;
       }
       // PULSE_STOP(X);
       axis_stop = X_AXIS;
@@ -1448,6 +1450,7 @@ void Stepper::ts_isr() {
       if (step_time_dir.sync) {
         steps_flag.popQueue(&flag_data);
         count_position[Y_AXIS] = flag_data.sync_pos;
+        popFlag = true;
       }
       // PULSE_STOP(Y);
       axis_stop = Y_AXIS;
@@ -1458,6 +1461,7 @@ void Stepper::ts_isr() {
       if (step_time_dir.sync) {
         steps_flag.popQueue(&flag_data);
         count_position[Z_AXIS] = flag_data.sync_pos;
+        popFlag = true;
       }
       // PULSE_STOP(Z);
       axis_stop = Z_AXIS;
@@ -1468,9 +1472,20 @@ void Stepper::ts_isr() {
       if (step_time_dir.sync) {
         steps_flag.popQueue(&flag_data);
         count_position[E_AXIS] = flag_data.sync_pos;
+        popFlag = true;
       }
       // PULSE_STOP(E);
       axis_stop = E_AXIS;
+    }
+
+    // update file pos
+    if (step_time_dir.update_file_pos) {
+      if (popFlag)
+        pause_block.filePos = flag_data.file_pos;
+      else {
+        steps_flag.popQueue(&flag_data);
+        pause_block.filePos = flag_data.file_pos;
+      }
     }
   }
 
