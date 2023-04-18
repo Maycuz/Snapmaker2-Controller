@@ -13,6 +13,7 @@
 #define SHAPER_VIBRATION_REDUCTION    (20)
 #define LOOP_SHAPER_AXES(VAR)         LOOP_S_L_N(VAR, 0, NUM_AXIS)
 #define INVALID_FILE_POS              (0xFFFFFFFF)
+#define INVALID_SYNC_POS              (0x7FFFFFFF)
 
 
 enum class InputShaperType : int
@@ -101,19 +102,18 @@ private:
 
 public:
   int axis;
-  uint8_t axis_bit_mask;
   int dir;
   float print_pos;
   bool have_gen_step_tick;
   uint32_t print_tick;
   uint32_t last_print_tick;
-  bool sync_trigger_flag;
-  circular_buffer<int> sync_pos_rb;
-  circular_buffer<uint32_t> file_pos_rb;
+  // bool sync_trigger_flag;
+  int sync_pos;
+  uint32_t file_pos;
+  // circular_buffer<int> sync_pos_rb;
   float right_delta;              // millisecond
   float left_delta;               // millisecond
   ShaperWindow shaper_window;
-  uint32_t file_pos;
   TimeGenFunc tgf_1, tgf_2;
   float delta_e = 0;
   #ifdef LOG_MOTION_INFO

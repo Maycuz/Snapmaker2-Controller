@@ -14,7 +14,6 @@ struct pos_trace pt;
 
 void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, uint32_t ms2t) {
   this->axis = axis;
-  this->axis_bit_mask = 1<<axis;
   this->mq = mq;
   this->type = type;
   this->ms2tick = ms2t;
@@ -407,6 +406,8 @@ bool AxisInputShaper::moveShaperWindowToNext() {
   CalcPluseInfo &cls_p = shaper_window.pluse[shaper_window.t_cls_pls];
   uint8_t cls_p_m_idx = mq->nextMoveIndex(cls_p.m_idx);
 
+  sync_pos = INVALID_SYNC_POS;
+
   if (InputShaperType::none != type) {
     // Shaper axis do NOT support sync in moving as position is not in the correction. Skip the sync move
     do {
@@ -433,7 +434,9 @@ bool AxisInputShaper::moveShaperWindowToNext() {
     }
     // Push the sync's target position
     if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
-      sync_pos_rb.push(mq->moves[cls_p_m_idx].sync_target_pos[axis]);
+      // sync_pos_rb.push(mq->moves[cls_p_m_idx].sync_target_pos[axis]);
+      sync_pos = mq->moves[cls_p_m_idx].sync_target_pos[axis];
+      // sync_trigger_flag = true;
     }
   }
 
@@ -441,9 +444,6 @@ bool AxisInputShaper::moveShaperWindowToNext() {
   // First pluse move to next move, update file pos
   if (0 == shaper_window.t_cls_pls) {
     file_pos = mq->moves[cls_p.m_idx].file_pos;
-    // if (E_AXIS == axis) {
-    //   LOG_I("1) E file pos update to %u\n", file_pos);
-    // }
   }
   else {
     file_pos = INVALID_FILE_POS;
@@ -456,7 +456,9 @@ bool AxisInputShaper::generateShapedFuncParams() {
   tgf_1.coef_a = tgf_coef_a_sum;
 
   // A sync
-  if (0 == shaper_window.wind_tick && InputShaperType::none == type) {
+  // if (0 == shaper_window.wind_tick && InputShaperType::none == type) {
+  if (INVALID_SYNC_POS != sync_pos) {
+    LOG_I("Axis %d sync in gen shape fun param\n", axis);
     tgf_1.flag = TimeGenFunc::TGF_SYNC_FLAG;
     return true;
   }
@@ -551,9 +553,9 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
   float ns;
 
   if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
-    sync_trigger_flag = true;
+    // sync_trigger_flag = true;
     have_gen_step_tick = true;
-    tgf.flag = false;
+    tgf.flag = 0;
     return true;
   }
 
@@ -682,20 +684,20 @@ bool AxisMng::getNextStep(StepInfo &step_info) {
       LOG_E("### ERROR ####: got a in-have gen step tick\r\n");
     }
 
+    // step time
     step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
     step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
-    step_info.time_dir.move_bits = dm->axis_bit_mask;
+    step_info.time_dir.move_bits = 1<<dm->axis;
     step_info.time_dir.axis = dm->axis;
-    if (!dm->sync_trigger_flag) {
-      step_info.time_dir.sync = 0;
-      #ifdef SHAPER_LOG_ENABLE
-      // LOG_I("Axis %d trigger pos %f, print_pos %f, got sync target pos %f\r\n",
-      // dm->axis, dm->sync_trigger_pos, dm->print_pos, dm->sync_target_pos);
-      #endif
-    }
-    else {
+
+    // step flag data, sync and block position
+    step_info.time_dir.sync = 0;
+    if (INVALID_SYNC_POS != dm->sync_pos) {
       step_info.time_dir.sync = 1;
-      dm->sync_pos_rb.pop(step_info.flag_data.sync_pos);
+      LOG_I("Axis %d sync in gen next step\n", dm->axis);
+      // dm->sync_pos_rb.pop(step_info.flag_data.sync_pos);
+      step_info.flag_data.sync_pos = dm->sync_pos;
+      dm->sync_pos = INVALID_SYNC_POS;
     }
     step_info.time_dir.update_file_pos = 0;
     if (E_AXIS == dm->axis && INVALID_FILE_POS != dm->file_pos) {
@@ -704,7 +706,7 @@ bool AxisMng::getNextStep(StepInfo &step_info) {
       dm->file_pos = INVALID_FILE_POS;
     }
 
-    dm->sync_trigger_flag = false;
+    // dm->sync_trigger_flag = false;
     cur_print_tick = dm->print_tick;
     dm->have_gen_step_tick = false;
 
