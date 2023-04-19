@@ -199,9 +199,11 @@ static void planner_task(void *param) {
   steps_seq.reset();
   axis_mng.init(&moveQueue, STEPPER_TIMER_TICKS_PER_MS);
   moveQueue.init(STEPPER_TIMER_TICKS_PER_MS, axis_mng.max_shaper_window_tick, axis_mng.max_shaper_window_right_delta_tick);
-  LOG_I("System start, adding a empty move for shaper\r\n");
-  moveQueue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
-  axis_mng.prepare(moveQueue.move_tail);
+  axis_mng.load_shaper_setting();
+
+  // LOG_I("System start, adding a empty move for shaper\r\n");
+  // moveQueue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
+  // axis_mng.prepare(moveQueue.move_tail);
 
   while(1) {
     planner.shaped_loop();

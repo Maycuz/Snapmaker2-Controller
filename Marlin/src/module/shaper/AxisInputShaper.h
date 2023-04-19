@@ -94,6 +94,12 @@ struct genStep {
   float     pos;
 };
 
+struct input_shaper_setting {
+  int type;
+  float freq;
+  float dampe;
+};
+
 class AxisInputShaper
 {
 public:
@@ -160,6 +166,7 @@ class AxisMng
 
 public:
   void init(MoveQueue *mq, uint32_t m2t);
+  void load_shaper_setting(void);
   void update_shaper(void);
   bool input_shaper_set(int axis, int type, float freq, float dampe);
   bool input_shaper_get(int axis, int &type, float &freq, float &dampe);
@@ -176,6 +183,7 @@ public:
   AxisInputShaper *findNearestPrintTickAxis();
 
 public:
+  bool is_init = false;
   AxisInputShaper *x_sp;
   AxisInputShaper *y_sp;
   AxisInputShaper *z_sp;
@@ -189,6 +197,7 @@ public:
   uint32_t ms2tick;
   uint32_t max_shaper_window_tick;
   uint32_t max_shaper_window_right_delta_tick;
+  struct input_shaper_setting is_setting[2];     // just for XY
   #ifdef LOG_MIDDLE_POS
   circular_buffer<float> tgf_middle_pos_rb;
   #endif

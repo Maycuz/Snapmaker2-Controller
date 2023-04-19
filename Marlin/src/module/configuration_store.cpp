@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V74"
+#define EEPROM_VERSION "V75"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -54,6 +54,7 @@
 #include "../libs/vector_3.h"
 #include "../gcode/gcode.h"
 #include "../Marlin.h"
+#include "./shaper/AxisInputShaper.h"
 
 #include "../../../snapmaker/src/snapmaker.h"
 
@@ -111,6 +112,12 @@ typedef struct {     bool X, Y, Z, X2, Y2, Z2, Z3, E0, E1, E2, E3, E4, E5; } tmc
 #define ALIM(I,ARR) MIN(I, COUNT(ARR) - 1)
 
 extern float nozzle_height_probed;
+
+typedef struct {
+  uint8_t type;
+  float freq;
+  float dampe;
+} is_setting_t;
 
 /**
  * Current EEPROM Layout
@@ -321,6 +328,10 @@ typedef struct SettingsDataStruct {
 
 
   LEVEL_SERVICE_EEPROM_PARAM;
+
+  // input shaper setting
+  is_setting_t input_shaper[2];
+
 } SettingsData;
 
 MarlinSettings settings;
@@ -1173,6 +1184,20 @@ void MarlinSettings::postprocess() {
 
     LEVEL_SERVICE_EEPROM_WRITE();
 
+    // input shaper
+    is_setting_t input_shaper[2];
+    _FIELD_TEST(input_shaper);
+    int type; float freq, damp;
+    axis_mng.input_shaper_get(X_AXIS, type, freq, damp);
+    input_shaper[0].type = type;
+    input_shaper[0].freq = freq;
+    input_shaper[0].dampe = damp;
+    axis_mng.input_shaper_get(Y_AXIS, type, freq, damp);
+    input_shaper[1].type = type;
+    input_shaper[1].freq = freq;
+    input_shaper[1].dampe = damp;
+    EEPROM_WRITE(input_shaper);
+
     //
     // Validate CRC and Data Size
     //
@@ -1940,6 +1965,17 @@ void MarlinSettings::postprocess() {
 
       LEVEL_SERVICE_EEPROM_READ();
 
+      // input shaper
+      is_setting_t input_shaper[2];
+      _FIELD_TEST(input_shaper);
+      EEPROM_READ(input_shaper);
+      axis_mng.is_setting[0].type = input_shaper[0].type;
+      axis_mng.is_setting[0].freq = input_shaper[0].freq;
+      axis_mng.is_setting[0].dampe = input_shaper[0].dampe;
+      axis_mng.is_setting[1].type = input_shaper[1].type;
+      axis_mng.is_setting[1].freq = input_shaper[1].freq;
+      axis_mng.is_setting[1].dampe = input_shaper[1].dampe;
+
       eeprom_error = size_error(eeprom_index - (EEPROM_OFFSET));
       if (eeprom_error) {
         DEBUG_ECHO_START();
@@ -2468,6 +2504,14 @@ void MarlinSettings::reset() {
   nozzle_height_probed = 0;
 
   LEVEL_SERVICE_EEPROM_RESET();
+
+  axis_mng.is_setting[0].type   = (int)SP_DEFT_TYPE;
+  axis_mng.is_setting[0].freq   = SP_DEFT_FREQ;
+  axis_mng.is_setting[0].dampe  = SP_DEFT_ZETA;
+
+  axis_mng.is_setting[1].type   = (int)SP_DEFT_TYPE;
+  axis_mng.is_setting[1].freq   = SP_DEFT_FREQ;
+  axis_mng.is_setting[1].dampe  = SP_DEFT_ZETA;
 }
 
 #if DISABLED(DISABLE_M503)
@@ -3310,6 +3354,8 @@ void MarlinSettings::reset() {
       CONFIG_ECHO_START();
       M217_report(true);
     #endif
+
+    axis_mng.log_xy_shpaer();
   }
 
 #endif // !DISABLE_M503

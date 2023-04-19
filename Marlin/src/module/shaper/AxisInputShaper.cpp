@@ -23,6 +23,7 @@ void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, float 
   this->frequency = freq;
   this->zeta = zeta;
   this->const_dist_hold = false;
+  this->tgf_1.flag = this->tgf_2.flag = false;
   shaper_init(this->type, this->frequency, this->zeta);
 }
 
@@ -322,7 +323,7 @@ bool AxisInputShaper::getStep() {
   genNextStep(g2);
 
   if (g1.valid && g2.valid && (g1.dir != g2.dir)) {
-    if (!const_dist_hold && ) {
+    if (!const_dist_hold) {
       g1.out_step = g2.out_step = false;
       #ifdef SHAPER_LOG_ENABLE
       LOG_I("Abolish steps: axis %d, pos %f == %f\n", axis, g1.pos, g2.pos);
@@ -696,7 +697,7 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   e_sp = &axes[E_AXIS];
 
   x_sp->init(X_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
-  y_sp->init(Y_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
+  y_sp->init(X_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
   z_sp->init(Z_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
   b_sp->init(B_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
   e_sp->init(E_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
@@ -713,7 +714,34 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
       max_shaper_window_right_delta_tick = sw;
   }
 
+  is_init = true;
+
   LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
+}
+
+void AxisMng::load_shaper_setting(void) {
+  if (  (int)InputShaperType::none <= is_setting[0].type && is_setting[0].type <= (int)InputShaperType::zvddd &&
+        10 <= is_setting[0].freq && is_setting[0].freq <= 200.0 &&
+        0.0 <= is_setting[0].dampe && is_setting[0].dampe < 1.0
+      )
+  {
+    x_sp->init(X_AXIS, mq, (InputShaperType)is_setting[0].type, is_setting[0].freq, is_setting[0].dampe, ms2tick);
+  }
+  else {
+    x_sp->init(X_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
+  }
+
+  if (  (int)InputShaperType::none <= is_setting[1].type && is_setting[1].type <= (int)InputShaperType::zvddd &&
+        10 <= is_setting[1].freq && is_setting[1].freq <= 200.0 &&
+        0.0 <= is_setting[1].dampe && is_setting[1].dampe < 1.0
+      )
+  {
+    y_sp->init(X_AXIS, mq, (InputShaperType)is_setting[1].type, is_setting[1].freq, is_setting[1].dampe, ms2tick);
+  }
+  else {
+    y_sp->init(X_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
+  }
+  update_shaper();
 }
 
 void AxisMng::update_shaper(void) {
@@ -786,10 +814,8 @@ void AxisMng::disable_shaper(void) {
 }
 
 void AxisMng::reset_shaper(void) {
-  planner.synchronize();
   abort();
   init(mq, ms2tick);
-
   moveQueue.addEmptyMove(2 * max_shaper_window_tick);
   axis_mng.prepare(moveQueue.move_tail);
 }
@@ -877,10 +903,14 @@ bool AxisMng::getNextStep(StepInfo &step_info) {
 }
 
 bool AxisMng::tgfValid() {
+  if (!is_init)
+    return false;
+
   LOOP_SHAPER_AXES(i) {
     if (axes[i].tgf_1.flag || axes[i].tgf_2.flag)
       return true;
   }
+  
   return false;
 }
 

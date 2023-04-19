@@ -5,7 +5,7 @@
 MoveQueue moveQueue;
 uint32_t MoveQueue::ms2tick;
 
-static float ZERO_AXIS_R[NUM_AXIS] = {0, 0, 0, 0, 0};
+static float ZERO_AXIS_R[NUM_AXIS] = {0.0, .0, .0, .0, .0};
 
 MoveQueue::MoveQueue() {
   move_tail = move_head = 0;
@@ -124,6 +124,10 @@ bool MoveQueue::genMoves(block_t* block) {
   axis_r[Z_AXIS] = block->axis_r[Z_AXIS];
   axis_r[B_AXIS] = block->axis_r[B_AXIS];
   axis_r[E_AXIS] = block->axis_r[E_AXIS];
+
+  if (block->millimeters > 0.0 && axis_r[E_AXIS] > 0.0) {
+    LOG_I("E move %f\n", block->millimeters * axis_r[E_AXIS]);
+  }
 
   file_pos = block->filePos;
   if (accelDistance > EPSILON) {

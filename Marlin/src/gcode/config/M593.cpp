@@ -50,6 +50,7 @@ void GcodeSuite::M593() {
   bool y = parser.seen('Y');
 
   if (parser.seen('R')) {
+    planner.synchronize();
     axis_mng.reset_shaper();
     report_M593();
     return;
@@ -76,8 +77,6 @@ void GcodeSuite::M593() {
     int type = parser.byteval('P', (int)axis_input_shaper->type);
     axis_mng.input_shaper_set(Y_AXIS, type, frequency, zeta);
   }
-
-  planner.synchronize();
   axis_mng.abort();
   axis_mng.update_shaper();
   report_M593();
