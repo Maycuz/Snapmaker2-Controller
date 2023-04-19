@@ -22,6 +22,7 @@ void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, float 
   this->backup_type = this->type = type;
   this->frequency = freq;
   this->zeta = zeta;
+  this->const_dist_hold = false;
   shaper_init(this->type, this->frequency, this->zeta);
 }
 
@@ -212,6 +213,8 @@ void AxisInputShaper::shaper_init(InputShaperType type, float frequency, float z
 
 void AxisInputShaper::reset() {
   tgf_1.flag = tgf_2.flag = 0;
+  const_dist_hold = false;
+  g1.valid = g2.valid = false;
   print_tick = 0;
   print_pos = 0.0;
   delta_e = 0.0;
@@ -309,13 +312,16 @@ bool AxisInputShaper::getStep() {
 
   if (!g1.valid) {
     genNextStep(g1);
-    if (!g1.valid)
+    if (!g1.valid) {
       return false;
+    }
   }
 
+  // To here g1 has got step
+  const_dist_hold = false;
   genNextStep(g2);
 
-  if (g1.valid && g2.valid && (g1.dir != g2.dir)) {
+  if (!const_dist_hold && g1.valid && g2.valid && (g1.dir != g2.dir)) {
     g1.out_step = g2.out_step = false;
     #ifdef SHAPER_LOG_ENABLE
     LOG_I("Abolish steps: axis %d, pos %f == %f\n", axis, g1.pos, g2.pos);
@@ -407,7 +413,6 @@ bool AxisInputShaper::alignToStartMove(int m_idx) {
 
   print_pos = shaper_window.lpos;
   print_tick = shaper_window.ltick;
-  have_gen_step_tick = false;
 
   return true;
 }
@@ -529,6 +534,7 @@ bool AxisInputShaper::generateShapedFuncParams() {
     #ifdef SHAPER_LOG_ENABLE
     LOG_I("ds %f, dt %f\r\n", ds, dt);
     #endif
+    const_dist_hold = true;
     return false;
   }
 
@@ -610,7 +616,6 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
   float ns;
 
   if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
-    have_gen_step_tick = true;
     tgf.flag = 0;
     return true;
   }
@@ -661,7 +666,6 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
   print_tick = tgf.start_tick + (uint32_t)LROUND((t_ms * ms2tick));
   dir = tgf.monotone;
   print_pos = np;
-  have_gen_step_tick = true;
 
   #ifdef SHAPER_LOG_ENABLE
   float itv = ((float)print_tick - lt) / ms2tick;
@@ -855,7 +859,7 @@ bool AxisMng::getNextStep(StepInfo &step_info) {
 
     cur_print_tick = dm->g1.tick;
     dm->g1.valid = false;
-    
+
     return true;
   }
   else {

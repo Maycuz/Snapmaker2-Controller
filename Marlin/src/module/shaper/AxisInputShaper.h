@@ -123,10 +123,10 @@ public:
   int axis;
   int dir;
 
-  bool have_gen_step_tick;
   float print_pos;
   uint32_t print_tick;
 
+  bool const_dist_hold;
   struct genStep g1, g2;
 
   int sync_pos;
