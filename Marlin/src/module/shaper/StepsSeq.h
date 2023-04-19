@@ -14,8 +14,9 @@ struct StepTimeDir{
   uint16_t itv;
   uint16_t axis: 4;
   uint16_t dir: 1;
+  uint16_t out_step: 1;
   uint16_t sync: 1;
-  uint16_t update_file_pos: 2;
+  uint16_t update_file_pos: 1;
   uint16_t move_bits: 8;
 };
 

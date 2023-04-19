@@ -212,7 +212,7 @@ void AxisInputShaper::shaper_init(InputShaperType type, float frequency, float z
 
 void AxisInputShaper::reset() {
   tgf_1.flag = tgf_2.flag = 0;
-  last_print_tick = print_tick = 0;
+  print_tick = 0;
   print_pos = 0.0;
   delta_e = 0.0;
   shaper_window.reset();
@@ -230,34 +230,50 @@ bool AxisInputShaper::prepare(int m_idx) {
 
   calcShaperWindowEndPosAndTime();
   if (!generateShapedFuncParams()){
-    last_print_tick = print_tick = shaper_window.tick;
+    print_tick = shaper_window.tick;
     print_pos = shaper_window.pos;
   }
 
-  return genNextStepTime();
+  // return genNextStep();
+  return getStep();
 }
 
-bool AxisInputShaper::genNextStepTime() {
-  if (have_gen_step_tick) {
-    return true;
-  }
+bool AxisInputShaper::genNextStep(struct genStep &gs) {
 
   if (tgf_1.flag) {
     if (getTimeFromTgf(tgf_1)){
+      gs.dir = dir;
+      gs.tick = print_tick;
+      gs.file_pos = file_pos;
+      gs.sync_pos = sync_pos;
+      gs.valid = true;
+      gs.out_step = true;
+      gs.pos = print_pos;
+      file_pos = INVALID_FILE_POS;
+      sync_pos = INVALID_SYNC_POS;
       return true;
     }
     else {
       tgf_1.flag = 0;
-      return genNextStepTime();
+      return genNextStep(gs);
     }
   }
   else if(tgf_2.flag) {
     if (getTimeFromTgf(tgf_2)){
+      gs.dir = dir;
+      gs.tick = print_tick;
+      gs.file_pos = file_pos;
+      gs.sync_pos = sync_pos;
+      gs.valid = true;
+      gs.out_step = true;
+      gs.pos = print_pos;
+      file_pos = INVALID_FILE_POS;
+      sync_pos = INVALID_SYNC_POS;
       return true;
     }
     else {
       tgf_2.flag = 0;
-      return genNextStepTime();
+      return genNextStep(gs);
     }
   }
   else {
@@ -265,19 +281,48 @@ bool AxisInputShaper::genNextStepTime() {
       if (moveShaperWindowToNext()) {
         calcShaperWindowEndPosAndTime();
         if (generateShapedFuncParams()) {
-          return genNextStepTime();
+          return genNextStep(gs);
         }
         else {
           // current print tick and positoin must update to shapper window
-          last_print_tick = print_tick = shaper_window.tick;
+          print_tick = shaper_window.tick;
           print_pos = shaper_window.pos;
         }
       }
       else {
+        gs.valid = false;
         return false;
       }
     }
   }
+
+}
+
+bool AxisInputShaper::getStep() {
+  if (g1.valid) {
+    return true;
+  }
+
+  if (g2.valid) {
+    g1 = g2;
+  }
+
+  if (!g1.valid) {
+    genNextStep(g1);
+    if (!g1.valid)
+      return false;
+  }
+
+  genNextStep(g2);
+
+  if (g1.valid && g2.valid && (g1.dir != g2.dir)) {
+    g1.out_step = g2.out_step = false;
+    #ifdef SHAPER_LOG_ENABLE
+    LOG_I("Abolish steps: axis %d, pos %f == %f\n", axis, g1.pos, g2.pos);
+    #endif
+  }
+
+  return true;
 }
 
 void AxisInputShaper::logShaperWindow() {
@@ -286,11 +331,6 @@ void AxisInputShaper::logShaperWindow() {
 
 uint32_t AxisInputShaper::getShaperWindown() {
   return (right_delta + left_delta) * ms2tick;
-}
-
-bool AxisInputShaper::alignToMoveHead() {
-  // Shaper windown align to the newest move. No move have
-  return mq->nextMoveIndex(shaper_window.pluse[shaper_window.pls_cnt-1].m_idx) == mq->move_head;
 }
 
 void AxisInputShaper::enable() {
@@ -366,7 +406,7 @@ bool AxisInputShaper::alignToStartMove(int m_idx) {
   shaper_window.ltick = shaper_window.tick;
 
   print_pos = shaper_window.lpos;
-  last_print_tick = print_tick = shaper_window.ltick;
+  print_tick = shaper_window.ltick;
   have_gen_step_tick = false;
 
   return true;
@@ -622,7 +662,6 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
   dir = tgf.monotone;
   print_pos = np;
   have_gen_step_tick = true;
-  last_print_tick = print_tick;
 
   #ifdef SHAPER_LOG_ENABLE
   float itv = ((float)print_tick - lt) / ms2tick;
@@ -761,7 +800,7 @@ bool AxisMng::prepare(uint8_t m_idx) {
       max_shaper_window_tick = sw;
   }
 
-  AxisInputShaper *dm = findMinPrintTickAxis();
+  AxisInputShaper *dm = findNearestPrintTickAxis();
   if (dm)
     cur_print_tick = dm->print_tick;
   else
@@ -777,41 +816,46 @@ void AxisMng::logShaperWindows() {
 }
 
 bool AxisMng::getNextStep(StepInfo &step_info) {
-  AxisInputShaper *dm = findMinPrintTickAxis();
-  // ActiveDM = dm;
+
+  AxisInputShaper *dm = findNearestPrintTickAxis();
   if (dm) {
-    if (PENDING(dm->print_tick, cur_print_tick)) {
-      LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->print_tick));
-      dm->print_tick = cur_print_tick;
+    // if (PENDING(dm->print_tick, cur_print_tick)) {
+    //   LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->print_tick));
+    //   dm->print_tick = cur_print_tick;
+    // }
+    // if (!dm->have_gen_step_tick) {
+    //   LOG_E("### ERROR ####: got a in-have gen step tick\r\n");
+    // }
+    if (PENDING(dm->g1.tick, cur_print_tick)) {
+      LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->g1.tick));
+      dm->g1.tick = cur_print_tick;
     }
-    if (!dm->have_gen_step_tick) {
+    if (!dm->g1.valid) {
       LOG_E("### ERROR ####: got a in-have gen step tick\r\n");
     }
 
     // step time
-    step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
-    step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
+    step_info.time_dir.itv = (uint16_t)(dm->g1.tick - cur_print_tick);
+    step_info.time_dir.dir = dm->g1.dir > 0 ? 1 : 0;
+    step_info.time_dir.out_step = dm->g1.out_step;
     step_info.time_dir.move_bits = 1<<dm->axis;
     step_info.time_dir.axis = dm->axis;
 
     // step flag data, sync and block position
     step_info.time_dir.sync = 0;
-    if (INVALID_SYNC_POS != dm->sync_pos) {
+    if (INVALID_SYNC_POS != dm->g1.sync_pos) {
       step_info.time_dir.sync = 1;
-      // LOG_I("Axis %d sync in gen next step\n", dm->axis);
-      step_info.flag_data.sync_pos = dm->sync_pos;
-      dm->sync_pos = INVALID_SYNC_POS;
+      step_info.flag_data.sync_pos = dm->g1.sync_pos;
     }
     step_info.time_dir.update_file_pos = 0;
-    if (E_AXIS == dm->axis && INVALID_FILE_POS != dm->file_pos) {
+    if (E_AXIS == dm->axis && INVALID_FILE_POS != dm->g1.file_pos) {
       step_info.time_dir.update_file_pos = 1;
-      step_info.flag_data.file_pos = dm->file_pos;
-      dm->file_pos = INVALID_FILE_POS;
+      step_info.flag_data.file_pos = dm->g1.file_pos;
     }
 
-    cur_print_tick = dm->print_tick;
-    dm->have_gen_step_tick = false;
-
+    cur_print_tick = dm->g1.tick;
+    dm->g1.valid = false;
+    
     return true;
   }
   else {
@@ -852,13 +896,15 @@ void AxisMng::updateOldestPluesTick() {
   oldest_plues_tick = opt;
 }
 
-AxisInputShaper *AxisMng::findMinPrintTickAxis() {
+AxisInputShaper *AxisMng::findNearestPrintTickAxis() {
   AxisInputShaper *nearest_axis = nullptr;
   LOOP_SHAPER_AXES(i) {
-    axes[i].genNextStepTime();
-    if (axes[i].have_gen_step_tick) {
+    // axes[i].genNextStep();
+    // if (axes[i].have_gen_step_tick) {
+    if (axes[i].getStep()) {
       if (nearest_axis) {
-        if (PENDING(axes[i].print_tick, nearest_axis->print_tick)) {
+        // if (PENDING(axes[i].print_tick, nearest_axis->print_tick)) {
+        if (PENDING(axes[i].g1.tick, nearest_axis->g1.tick)) {
           nearest_axis = &axes[i];
         }
       }
@@ -868,7 +914,8 @@ AxisInputShaper *AxisMng::findMinPrintTickAxis() {
     }
   }
 
-  if (nearest_axis && ELAPSED(nearest_axis->print_tick, mq->can_print_head_tick)) {
+  // if (nearest_axis && ELAPSED(nearest_axis->print_tick, mq->can_print_head_tick)) {
+  if (nearest_axis && ELAPSED(nearest_axis->g1.tick, mq->can_print_head_tick)) {
     // LOG_I("ActiveDM(%d)'s tick must wait for move's gen step tick\r\n", nearest_axis->axis);
     nearest_axis = nullptr;
   }

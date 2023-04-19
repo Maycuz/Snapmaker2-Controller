@@ -1204,8 +1204,12 @@ bool Planner::genStep() {
         //   LOG_I("2) E file pos update to %u\n", step_info.flag_data.file_pos);
         // }
         if (!steps_flag.pushQueue(step_info.flag_data)) {
+          #ifdef SHAPER_LOG_ENABLE
+            break;
+          #else
           LOG_E("### steps flag have no space\r\n");
           while(1);
+          #endif
         }
       }
     }
@@ -1282,16 +1286,19 @@ void Planner::shaped_loop() {
   StepInfo step_info;
   // LOG_I("NO STEP GEN\r\n");
   // Consumption
-  while(!steps_seq.isEmpty()) {
-    steps_seq.popQueue(&step_info.time_dir);
-    // LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
-    // if (step_info.time_dir.sync) {
-    //   union StepFlagData flag_data;
-    //   if(steps_flag.popQueue(&flag_data))
-    //     LOG_I("Axis %d sync to %d\r\n", step_info.time_dir.axis, flag_data.sync_pos);
-    //   else
-    //     LOG_E("Axis %d can not got sync data\r\n", step_info.time_dir.axis);
-    // }
+  while(steps_seq.popQueue(&step_info.time_dir)) {
+    if (step_info.time_dir.out_step) {
+      LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
+    }
+    if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
+      struct StepFlagData flag_data;
+      if(steps_flag.popQueue(&flag_data)) {
+        if (step_info.time_dir.sync)
+          LOG_I("Axis %d sync to %d\r\n", step_info.time_dir.axis, flag_data.sync_pos);
+        if (step_info.time_dir.update_file_pos)
+          LOG_I("Axis %d file pso to %d\r\n", step_info.time_dir.axis, flag_data.file_pos);
+      }
+    }
   }
   #endif
 

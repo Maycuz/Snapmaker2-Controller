@@ -7,7 +7,7 @@
 #include "CircularBuffer.h"
 
 
-#define SHAPER_LOG_ENABLE
+// #define SHAPER_LOG_ENABLE
 // #define LOG_MOTION_INFO
 #define EMPTY_MOVE_TIME               (100 * STEPPER_TIMER_TICKS_PER_MS)
 #define SHAPER_VIBRATION_REDUCTION    (20)
@@ -82,6 +82,17 @@ public:
   }
 };
 
+struct genStep {
+  uint8_t   valid;
+  uint8_t   out_step;
+  int8_t    dir;
+  uint8_t   reserve;
+  uint32_t  tick;
+  uint32_t  sync_pos;
+  uint32_t  file_pos;
+  float     pos;
+};
+
 class AxisInputShaper
 {
 public:
@@ -92,10 +103,10 @@ public:
   void reset();
   void setConfig(int type, float frequency, float zeta);
   bool prepare(int m_idx);
-  bool genNextStepTime();
+  bool genNextStep(struct genStep &gs);
+  bool getStep();
   void logShaperWindow();
   uint32_t getShaperWindown();
-  bool alignToMoveHead();
   void enable();
   void disable();
 
@@ -111,10 +122,13 @@ private:
 public:
   int axis;
   int dir;
-  float print_pos;
+
   bool have_gen_step_tick;
+  float print_pos;
   uint32_t print_tick;
-  uint32_t last_print_tick;
+
+  struct genStep g1, g2;
+
   int sync_pos;
   uint32_t file_pos;
   float right_delta;              // millisecond
@@ -157,7 +171,7 @@ public:
   bool tgfValid();
   void abort();
   void updateOldestPluesTick();
-  AxisInputShaper *findMinPrintTickAxis();
+  AxisInputShaper *findNearestPrintTickAxis();
 
 public:
   AxisInputShaper *x_sp;

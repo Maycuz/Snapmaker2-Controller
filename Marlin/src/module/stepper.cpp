@@ -1431,29 +1431,31 @@ void Stepper::ts_isr() {
     }
 
     // Out put plus
-    if (X_AXIS == step_time_dir.axis) {
-      PULSE_START(X);
-      PULSE_PREP(X);
-      // PULSE_STOP(X);
-      fall_edge_axis = X_AXIS;
-    }
-    else if(Y_AXIS == step_time_dir.axis) {
-      PULSE_START(Y);
-      PULSE_PREP(Y);
-      // PULSE_STOP(Y);
-      fall_edge_axis = Y_AXIS;
-    }
-    else if(Z_AXIS == step_time_dir.axis) {
-      PULSE_START(Z);
-      PULSE_PREP(Z);
-      // PULSE_STOP(Z);
-      fall_edge_axis = Z_AXIS;
-    }
-    else if(E_AXIS == step_time_dir.axis) {
-      PULSE_START(E);
-      PULSE_PREP(E);
-      // PULSE_STOP(E);
-      fall_edge_axis = E_AXIS;
+    if (step_time_dir.out_step) {
+      if (X_AXIS == step_time_dir.axis) {
+        PULSE_START(X);
+        PULSE_PREP(X);
+        // PULSE_STOP(X);
+        fall_edge_axis = X_AXIS;
+      }
+      else if(Y_AXIS == step_time_dir.axis) {
+        PULSE_START(Y);
+        PULSE_PREP(Y);
+        // PULSE_STOP(Y);
+        fall_edge_axis = Y_AXIS;
+      }
+      else if(Z_AXIS == step_time_dir.axis) {
+        PULSE_START(Z);
+        PULSE_PREP(Z);
+        // PULSE_STOP(Z);
+        fall_edge_axis = Z_AXIS;
+      }
+      else if(E_AXIS == step_time_dir.axis) {
+        PULSE_START(E);
+        PULSE_PREP(E);
+        // PULSE_STOP(E);
+        fall_edge_axis = E_AXIS;
+      }
     }
   }
 
@@ -1493,7 +1495,6 @@ void Stepper::ts_isr() {
   }
 
   if (sif_valid) {
-
     struct StepFlagData flag_data;
     if (step_time_dir.sync || step_time_dir.update_file_pos) {
       steps_flag.popQueue(&flag_data);
