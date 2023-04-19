@@ -697,7 +697,7 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   e_sp = &axes[E_AXIS];
 
   x_sp->init(X_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
-  y_sp->init(X_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
+  y_sp->init(Y_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
   z_sp->init(Z_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
   b_sp->init(B_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
   e_sp->init(E_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
@@ -736,10 +736,10 @@ void AxisMng::load_shaper_setting(void) {
         0.0 <= is_setting[1].dampe && is_setting[1].dampe < 1.0
       )
   {
-    y_sp->init(X_AXIS, mq, (InputShaperType)is_setting[1].type, is_setting[1].freq, is_setting[1].dampe, ms2tick);
+    y_sp->init(Y_AXIS, mq, (InputShaperType)is_setting[1].type, is_setting[1].freq, is_setting[1].dampe, ms2tick);
   }
   else {
-    y_sp->init(X_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
+    y_sp->init(Y_AXIS, mq, SP_DEFT_TYPE, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2tick);
   }
   update_shaper();
 }
@@ -910,7 +910,7 @@ bool AxisMng::tgfValid() {
     if (axes[i].tgf_1.flag || axes[i].tgf_2.flag)
       return true;
   }
-  
+
   return false;
 }
 
