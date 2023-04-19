@@ -16,8 +16,13 @@ MoveQueue::MoveQueue() {
   }
 }
 
-void MoveQueue::init(uint32_t sm2t, uint32_t mswt, uint32_t mswrdt) {
+void MoveQueue::init(uint32_t sm2t) {
   MoveQueue::ms2tick = sm2t;
+  reset();
+  is_init = true;
+}
+
+void MoveQueue::update_shaper_param(uint32_t mswt, uint32_t mswrdt) {
   max_shape_window_tick = mswt;
   max_shape_window_right_delta_tick = mswrdt;
 }
@@ -125,9 +130,9 @@ bool MoveQueue::genMoves(block_t* block) {
   axis_r[B_AXIS] = block->axis_r[B_AXIS];
   axis_r[E_AXIS] = block->axis_r[E_AXIS];
 
-  if (block->millimeters > 0.0 && axis_r[E_AXIS] > 0.0) {
-    LOG_I("E move %f\n", block->millimeters * axis_r[E_AXIS]);
-  }
+  // if (block->millimeters > 0.0 && axis_r[E_AXIS] > 0.0) {
+  //   LOG_I("E move %f\n", block->millimeters * axis_r[E_AXIS]);
+  // }
 
   file_pos = block->filePos;
   if (accelDistance > EPSILON) {
@@ -221,6 +226,10 @@ float MoveQueue::getAxisPosition(int move_index, int axis, uint32_t tick) {
 }
 
 void MoveQueue::moveTailForward(uint32_t print_tick) {
+
+  if (!is_init)
+    return;
+
   while ((move_tail != move_head) && ELAPSED(print_tick, moves[move_tail].end_tick + SAFE_ISOLATION_TIME_STRIP)) {
     // LOG_I("print_tick %d, move[tail] end_tick %d\r\n", print_tick, moves[move_tail].end_tick);
     moves[move_tail].reset();
@@ -234,9 +243,13 @@ void MoveQueue::moveTailForward(uint32_t print_tick) {
   if ((moves_head_tick - moves_tail_tick) < max_shape_window_tick && getMoveSize() > MOVE_SIZE - 5) {
     LOG_E("#### Move queue spend tick < max shaper window tick\n");
   }
+
 }
 
 bool MoveQueue::haveMotion() {
+  if (!is_init)
+    return false;
+
   if (move_head == move_tail)
     return false;
 

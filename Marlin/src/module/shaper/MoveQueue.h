@@ -45,7 +45,8 @@ class MoveQueue {
 
 public:
   MoveQueue();
-  void init(uint32_t s2t, uint32_t mswt, uint32_t mswrdt);
+  void init(uint32_t s2t);
+  void update_shaper_param(uint32_t mswt, uint32_t mswrdt);
   FORCE_INLINE constexpr uint8_t nextMoveIndex(const uint8_t m_index) { return MOVE_MOD(m_index + 1);};
   FORCE_INLINE constexpr uint8_t prevMoveIndex(const uint8_t m_index) { return MOVE_MOD(m_index - 1);};
   FORCE_INLINE bool isBetween(const uint8_t m_index) { return (m_index != move_head) && (MOVE_MOD(move_head - m_index) + MOVE_MOD(m_index - move_tail)) == MOVE_MOD(move_head - move_tail);};
@@ -68,6 +69,7 @@ public:
   static uint32_t ms2tick;
 
 public:
+  bool is_init = false;
   uint8_t move_tail;
   uint8_t move_head;
   Move moves[MOVE_SIZE];

@@ -197,8 +197,8 @@ static void planner_task(void *param) {
 
   steps_flag.reset();
   steps_seq.reset();
+  moveQueue.init(STEPPER_TIMER_TICKS_PER_MS);
   axis_mng.init(&moveQueue, STEPPER_TIMER_TICKS_PER_MS);
-  moveQueue.init(STEPPER_TIMER_TICKS_PER_MS, axis_mng.max_shaper_window_tick, axis_mng.max_shaper_window_right_delta_tick);
   axis_mng.load_shaper_setting();
 
   // LOG_I("System start, adding a empty move for shaper\r\n");

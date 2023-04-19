@@ -702,21 +702,19 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   b_sp->init(B_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
   e_sp->init(E_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
 
-  uint32_t sw;
-  max_shaper_window_tick = 0;
-  max_shaper_window_right_delta_tick = 0;
-  LOOP_SHAPER_AXES(i) {
-    sw = axes[i].getShaperWindown();
-    if (max_shaper_window_tick < sw)
-      max_shaper_window_tick = sw;
-    sw = axes[i].right_delta * ms2tick;
-    if (max_shaper_window_right_delta_tick < sw)
-      max_shaper_window_right_delta_tick = sw;
-  }
+  // uint32_t sw;
+  // max_shaper_window_tick = 0;
+  // max_shaper_window_right_delta_tick = 0;
+  // LOOP_SHAPER_AXES(i) {
+  //   sw = axes[i].getShaperWindown();
+  //   if (max_shaper_window_tick < sw)
+  //     max_shaper_window_tick = sw;
+  //   sw = axes[i].right_delta * ms2tick;
+  //   if (max_shaper_window_right_delta_tick < sw)
+  //     max_shaper_window_right_delta_tick = sw;
+  // }
 
   is_init = true;
-
-  LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
 }
 
 void AxisMng::load_shaper_setting(void) {
@@ -745,23 +743,7 @@ void AxisMng::load_shaper_setting(void) {
 }
 
 void AxisMng::update_shaper(void) {
-
-  max_shaper_window_tick = 0;
-  max_shaper_window_right_delta_tick = 0;
-
-  uint32_t sw;
-  LOOP_SHAPER_AXES(i) {
-    axes[i].shaper_init();
-    sw = axes[i].getShaperWindown();
-    if (max_shaper_window_tick < sw)
-      max_shaper_window_tick = sw;
-    sw = axes[i].right_delta * ms2tick;
-    if (max_shaper_window_right_delta_tick < sw)
-      max_shaper_window_right_delta_tick = sw;
-  }
-  LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
-
-  LOG_I("Adding a empty move after update\r\n");
+  LOG_I("update_shaper, adding a empty move after update\r\n");
   moveQueue.addEmptyMove(2 * max_shaper_window_tick);
   axis_mng.prepare(moveQueue.move_tail);
 }
@@ -816,6 +798,9 @@ void AxisMng::disable_shaper(void) {
 void AxisMng::reset_shaper(void) {
   abort();
   init(mq, ms2tick);
+
+  LOG_I("reset shaper, Add empty move\n");
+
   moveQueue.addEmptyMove(2 * max_shaper_window_tick);
   axis_mng.prepare(moveQueue.move_tail);
 }
@@ -827,16 +812,24 @@ void AxisMng::log_xy_shpaer(void) {
 
 bool AxisMng::prepare(uint8_t m_idx) {
 
+  uint32_t sw;
   max_shaper_window_tick = 0;
+  max_shaper_window_right_delta_tick = 0;
   LOOP_SHAPER_AXES(i) {
     if (axes[i].prepare(m_idx)) {
       pt.axis[i] = axes[i].print_pos;
     }
-    uint32_t sw;
+
     sw = axes[i].getShaperWindown();
     if (max_shaper_window_tick < sw)
       max_shaper_window_tick = sw;
+    sw = axes[i].right_delta * ms2tick;
+    if (max_shaper_window_right_delta_tick < sw)
+      max_shaper_window_right_delta_tick = sw;
   }
+
+  LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
+  mq->update_shaper_param(max_shaper_window_tick, max_shaper_window_right_delta_tick);
 
   AxisInputShaper *dm = findNearestPrintTickAxis();
   if (dm)
@@ -925,6 +918,8 @@ void AxisMng::abort() {
 }
 
 void AxisMng::updateOldestPluesTick() {
+  if (!is_init)
+    return;
   uint32_t shaper_window_tick = axes[0].shaper_window.tick;
   uint32_t left_plues_tick = shaper_window_tick + LROUND((-axes[0].left_delta * ms2tick));
   uint32_t opt = left_plues_tick;
