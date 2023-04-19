@@ -7,9 +7,10 @@
 #include "CircularBuffer.h"
 
 
+// #define LOG_MIDDLE_POS
 // #define SHAPER_LOG_ENABLE
 // #define LOG_MOTION_INFO
-#define EMPTY_MOVE_TIME               (100 * STEPPER_TIMER_TICKS_PER_MS)
+#define START_TICK                    (0xFAA2B57F)
 #define SHAPER_VIBRATION_REDUCTION    (20)
 #define LOOP_SHAPER_AXES(VAR)         LOOP_S_L_N(VAR, 0, NUM_AXIS)
 #define INVALID_FILE_POS              (0xFFFFFFFF)
@@ -131,9 +132,11 @@ public:
 
   int sync_pos;
   uint32_t file_pos;
+
   float right_delta;              // millisecond
   float left_delta;               // millisecond
   ShaperWindow shaper_window;
+
   TimeGenFunc tgf_1, tgf_2;
   float delta_e = 0;
   #ifdef LOG_MOTION_INFO
@@ -166,7 +169,6 @@ public:
   void log_xy_shpaer(void);
   bool prepare(uint8_t m_idx);
   void logShaperWindows();
-  void insertDM(AxisInputShaper *axis);
   bool getNextStep(StepInfo &step_info);
   bool tgfValid();
   void abort();
@@ -187,7 +189,9 @@ public:
   uint32_t ms2tick;
   uint32_t max_shaper_window_tick;
   uint32_t max_shaper_window_right_delta_tick;
+  #ifdef LOG_MIDDLE_POS
   circular_buffer<float> tgf_middle_pos_rb;
+  #endif
 };
 
 extern AxisMng axis_mng;

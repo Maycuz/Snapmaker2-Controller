@@ -42,8 +42,8 @@ void Move::log(uint8_t idx) {
 void MoveQueue::reset() {
   move_tail = 0;
   move_head = 0;
-  moves_head_tick = 0;
-  moves_tail_tick = 0;
+  moves_head_tick = START_TICK;
+  moves_tail_tick = START_TICK;
   LOOP_SHAPER_AXES(i) {
     last_mq_pos[i] = 0;
   }

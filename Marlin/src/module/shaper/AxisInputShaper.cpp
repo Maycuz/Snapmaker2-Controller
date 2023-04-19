@@ -321,11 +321,16 @@ bool AxisInputShaper::getStep() {
   const_dist_hold = false;
   genNextStep(g2);
 
-  if (!const_dist_hold && g1.valid && g2.valid && (g1.dir != g2.dir)) {
-    g1.out_step = g2.out_step = false;
-    #ifdef SHAPER_LOG_ENABLE
-    LOG_I("Abolish steps: axis %d, pos %f == %f\n", axis, g1.pos, g2.pos);
-    #endif
+  if (g1.valid && g2.valid && (g1.dir != g2.dir)) {
+    if (!const_dist_hold && ) {
+      g1.out_step = g2.out_step = false;
+      #ifdef SHAPER_LOG_ENABLE
+      LOG_I("Abolish steps: axis %d, pos %f == %f\n", axis, g1.pos, g2.pos);
+      #endif
+    }
+    else {
+      LOG_I("A const hold move segment, do NOT abolish steps when change dir\n");
+    }
   }
 
   return true;
@@ -534,7 +539,8 @@ bool AxisInputShaper::generateShapedFuncParams() {
     #ifdef SHAPER_LOG_ENABLE
     LOG_I("ds %f, dt %f\r\n", ds, dt);
     #endif
-    const_dist_hold = true;
+    if (dt > 5.0) // millisecond
+      const_dist_hold = true;
     return false;
   }
 
@@ -569,8 +575,10 @@ bool AxisInputShaper::generateShapedFuncParams() {
       tgf_1.start_pos = s1;
       float middle_p = CALC_OF_BINOMIAL(tgf_1);
       tgf_1.end_pos = s1 + middle_p;
+      #ifdef LOG_MIDDLE_POS
       if(axis == X_AXIS)
         axis_mng.tgf_middle_pos_rb.push(fabs(middle_p));
+      #endif
       tgf_1.flag = TimeGenFunc::TGF_VALID_FLAG;
       #ifdef SHAPER_LOG_ENABLE
       tgf_1.log(1);
@@ -808,7 +816,7 @@ bool AxisMng::prepare(uint8_t m_idx) {
   if (dm)
     cur_print_tick = dm->print_tick;
   else
-    cur_print_tick = 0;
+    cur_print_tick = START_TICK;
 
   return true;
 }
