@@ -7,7 +7,7 @@
 #include "CircularBuffer.h"
 
 
-// #define SHAPER_LOG_ENABLE
+#define SHAPER_LOG_ENABLE
 // #define LOG_MOTION_INFO
 #define EMPTY_MOVE_TIME               (100 * STEPPER_TIMER_TICKS_PER_MS)
 #define SHAPER_VIBRATION_REDUCTION    (20)
@@ -115,10 +115,8 @@ public:
   bool have_gen_step_tick;
   uint32_t print_tick;
   uint32_t last_print_tick;
-  // bool sync_trigger_flag;
   int sync_pos;
   uint32_t file_pos;
-  // circular_buffer<int> sync_pos_rb;
   float right_delta;              // millisecond
   float left_delta;               // millisecond
   ShaperWindow shaper_window;

@@ -453,9 +453,7 @@ bool AxisInputShaper::moveShaperWindowToNext() {
     }
     // Push the sync's target position
     if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
-      // sync_pos_rb.push(mq->moves[cls_p_m_idx].sync_target_pos[axis]);
       sync_pos = mq->moves[cls_p_m_idx].sync_target_pos[axis];
-      // sync_trigger_flag = true;
     }
   }
 
@@ -572,18 +570,20 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
   float ns;
 
   if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
-    // sync_trigger_flag = true;
     have_gen_step_tick = true;
     tgf.flag = 0;
     return true;
   }
 
+  float safe_strip = EPSILON;
   if (tgf.monotone < 0) {
     np = print_pos - mm_per_step;
     ns = print_pos - mm_per_half_step;
-    if (ns < tgf.end_pos - EPSILON) {
+    // if (ns < tgf.end_pos - EPSILON) {
+    // if (np < tgf.end_pos - EPSILON) {
+    if (ns - safe_strip < tgf.end_pos) {
       #ifdef SHAPER_LOG_ENABLE
-      LOG_I("Axis %d, PP %u,  SP %u tgf.end_pos %d(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
+      LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
       #endif
       return false;
     }
@@ -591,9 +591,11 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
   else if (tgf.monotone > 0) {
     np = print_pos + mm_per_step;
     ns = print_pos + mm_per_half_step;
-    if (ns > tgf.end_pos + EPSILON) {
+    // if (ns > tgf.end_pos + EPSILON) {
+    // if (np > tgf.end_pos + EPSILON) {
+    if (ns + safe_strip > tgf.end_pos) {
       #ifdef SHAPER_LOG_ENABLE
-      LOG_I("Axis %d, PP %u,  SP %u tgf.end_pos %d(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
+      LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
       #endif
       return false;
     }
@@ -624,7 +626,7 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
 
   #ifdef SHAPER_LOG_ENABLE
   float itv = ((float)print_tick - lt) / ms2tick;
-  LOG_I("Axis %d, print_pos %u,  sample_pos %u tgf's start_tick %d ", axis, np, ns, tgf.start_tick);
+  LOG_I("Axis %d, print_pos %f, sample_pos %f, start_tick %d, strip %f, ", axis, np, ns, tgf.start_tick, safe_strip);
   LOG_I("tgf return t %.3fms, last tick %d, cur tick %d, itv %.3fms, dir %d\n", t_ms, lt, print_tick, itv, dir);
   #endif
 
@@ -797,7 +799,6 @@ bool AxisMng::getNextStep(StepInfo &step_info) {
     if (INVALID_SYNC_POS != dm->sync_pos) {
       step_info.time_dir.sync = 1;
       // LOG_I("Axis %d sync in gen next step\n", dm->axis);
-      // dm->sync_pos_rb.pop(step_info.flag_data.sync_pos);
       step_info.flag_data.sync_pos = dm->sync_pos;
       dm->sync_pos = INVALID_SYNC_POS;
     }
@@ -808,7 +809,6 @@ bool AxisMng::getNextStep(StepInfo &step_info) {
       dm->file_pos = INVALID_FILE_POS;
     }
 
-    // dm->sync_trigger_flag = false;
     cur_print_tick = dm->print_tick;
     dm->have_gen_step_tick = false;
 
