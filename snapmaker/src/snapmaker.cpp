@@ -451,7 +451,7 @@ void SnapmakerSetupPost() {
   }
 
   ret = xTaskCreate((TaskFunction_t)planner_task, "planner_task", PLANNER_TASK_STACK_DEPTH,
-        (void *)nullptr, PLANNER_TASK_PRIO, nullptr);
+        (void *)nullptr, PLANNER_TASK_PRIO, &sm2_handle->planner);
   if (ret != pdPASS) {
     LOG_E("Failed to create planner task!\n");
     while(1);

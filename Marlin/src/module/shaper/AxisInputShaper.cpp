@@ -3,13 +3,16 @@
 #include "TimeGenFunc.h"
 #include "DiagnoseLog.h"
 #include "../../../../snapmaker/src/common/debug.h"
+#include "../../../../snapmaker/src/snapmaker.h"
 
 
 #define CALC_OF_BINOMIAL(tgf)     ((tgf.coef_a * tgf.time_wind + tgf.coef_b) * tgf.time_wind)
 
 
 AxisMng axis_mng;
+#ifdef LOG_PRINT_POS
 struct pos_trace pt;
+#endif
 const char* input_shaper_type_name[] = {"none", "ei", "ei2", "ei3", "mzv", "zv", "zvd", "zvdd", "zvddd"};
 
 
@@ -351,6 +354,7 @@ void AxisInputShaper::enable() {
 
 void AxisInputShaper::disable() {
   backup_type = type;
+  type = InputShaperType::none;
 }
 
 void AxisInputShaper::shiftPulses() {
@@ -688,6 +692,11 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
 void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   reqAbort = false;
   ms2tick = ms2t;
+
+  endisable = true;
+  req_update_shaper_flag = false;
+  req_reset_shaper_flag = false;
+  req_endisable_shaper_flag = false;
   this->mq = mq;
 
   x_sp = &axes[X_AXIS];
@@ -702,19 +711,40 @@ void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   b_sp->init(B_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
   e_sp->init(E_AXIS, mq, InputShaperType::none, SP_DEFT_FREQ, SP_DEFT_ZETA, ms2t);
 
-  // uint32_t sw;
-  // max_shaper_window_tick = 0;
-  // max_shaper_window_right_delta_tick = 0;
-  // LOOP_SHAPER_AXES(i) {
-  //   sw = axes[i].getShaperWindown();
-  //   if (max_shaper_window_tick < sw)
-  //     max_shaper_window_tick = sw;
-  //   sw = axes[i].right_delta * ms2tick;
-  //   if (max_shaper_window_right_delta_tick < sw)
-  //     max_shaper_window_right_delta_tick = sw;
-  // }
-
   is_init = true;
+}
+
+// Call in planner task, can NOT delay as planner must generate the steps info
+void AxisMng::loop(void) {
+
+  if (req_endisable_shaper_flag) {
+    if (endisable_shaper(req_shaper_status))
+      req_endisable_shaper_flag = false;
+  }
+
+  if (req_update_shaper_flag) {
+    if (update_shaper())
+      req_update_shaper_flag = false;
+  }
+
+  if (req_reset_shaper_flag) {
+    if (reset_shaper())
+      req_reset_shaper_flag = false;
+  }
+
+}
+
+bool AxisMng::planner_sync(void) {
+  if (
+    Planner::has_blocks_queued() || Planner::cleaning_buffer_counter
+    #if ENABLED(EXTERNAL_CLOSED_LOOP_CONTROLLER)
+      || (READ(CLOSED_LOOP_ENABLE_PIN) && !READ(CLOSED_LOOP_MOVE_COMPLETE_PIN))
+    #endif
+    || Planner::has_motion_queue()
+    || axis_mng.reqAbort
+  ) return false;
+
+  return true;
 }
 
 void AxisMng::load_shaper_setting(void) {
@@ -742,10 +772,22 @@ void AxisMng::load_shaper_setting(void) {
   update_shaper();
 }
 
-void AxisMng::update_shaper(void) {
-  LOG_I("update_shaper, adding a empty move after update\r\n");
-  moveQueue.addEmptyMove(2 * max_shaper_window_tick);
+bool AxisMng::update_shaper(void) {
+  if (!planner_sync())
+    return false;
+
+  abort();
+  x_sp->init(X_AXIS, mq, x_sp->type, x_sp->frequency, x_sp->zeta, ms2tick);
+  y_sp->init(Y_AXIS, mq, y_sp->type, y_sp->frequency, y_sp->zeta, ms2tick);
+  z_sp->init(Z_AXIS, mq, z_sp->type, z_sp->frequency, z_sp->zeta, ms2tick);
+  b_sp->init(B_AXIS, mq, b_sp->type, b_sp->frequency, b_sp->zeta, ms2tick);
+  e_sp->init(E_AXIS, mq, e_sp->type, e_sp->frequency, e_sp->zeta, ms2tick);
+
+  LOG_I("Update_shaper, adding a empty move after update\r\n");
+  moveQueue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
   axis_mng.prepare(moveQueue.move_tail);
+
+  return true;
 }
 
 bool AxisMng::input_shaper_set(int axis, int type, float freq, float dampe) {
@@ -773,36 +815,47 @@ bool AxisMng::input_shaper_get(int axis, int &type, float &freq, float &dampe) {
   }
 }
 
-void AxisMng::enable_shaper(void) {
-  planner.synchronize();
+bool AxisMng::endisable_shaper(bool endisable) {
+  if (!planner_sync())
+    return false;
+
   abort();
 
-  LOG_I("All axis enable\n");
+  LOG_I("All axis %s\n", endisable ? "enbale" : "disable");
   LOOP_SHAPER_AXES(i) {
-    axes[i].enable();
+    if (endisable)
+      axes[i].enable();
+    else
+      axes[i].disable();
   }
-  update_shaper();
+
+  // Re-init axis shaper
+  x_sp->init(X_AXIS, mq, x_sp->type, x_sp->frequency, x_sp->zeta, ms2tick);
+  y_sp->init(Y_AXIS, mq, y_sp->type, y_sp->frequency, y_sp->zeta, ms2tick);
+  z_sp->init(Z_AXIS, mq, z_sp->type, z_sp->frequency, z_sp->zeta, ms2tick);
+  b_sp->init(B_AXIS, mq, b_sp->type, b_sp->frequency, b_sp->zeta, ms2tick);
+  e_sp->init(E_AXIS, mq, e_sp->type, e_sp->frequency, e_sp->zeta, ms2tick);
+
+  LOG_I("Endisable shaper, adding a empty move\r\n");
+  moveQueue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
+  axis_mng.prepare(moveQueue.move_tail);
+
+  this->endisable = endisable;
+  return true;
 }
 
-void AxisMng::disable_shaper(void) {
-  planner.synchronize();
-  abort();
+bool AxisMng::reset_shaper(void) {
+  if (!planner_sync())
+    return false;
 
-  LOG_I("All axis disable\n");
-  LOOP_SHAPER_AXES(i) {
-    axes[i].disable();
-  }
-  update_shaper();
-}
-
-void AxisMng::reset_shaper(void) {
   abort();
   init(mq, ms2tick);
 
   LOG_I("reset shaper, Add empty move\n");
-
-  moveQueue.addEmptyMove(2 * max_shaper_window_tick);
+  moveQueue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
   axis_mng.prepare(moveQueue.move_tail);
+
+  return true;
 }
 
 void AxisMng::log_xy_shpaer(void) {
@@ -817,7 +870,9 @@ bool AxisMng::prepare(uint8_t m_idx) {
   max_shaper_window_right_delta_tick = 0;
   LOOP_SHAPER_AXES(i) {
     if (axes[i].prepare(m_idx)) {
+      #ifdef LOG_PRINT_POS
       pt.axis[i] = axes[i].print_pos;
+      #endif
     }
 
     sw = axes[i].getShaperWindown();
@@ -958,4 +1013,89 @@ AxisInputShaper *AxisMng::findNearestPrintTickAxis() {
   }
 
   return nearest_axis;
+}
+
+bool AxisMng::req_endisable_shaper(bool endisable) {
+  uint32_t wait;
+
+  wait = 100;
+  while(req_endisable_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
+  if (req_endisable_shaper_flag) {
+    LOG_E("Can not request endisable shaper as other thread doing\n");
+    return false;
+  }
+
+  req_endisable_shaper_flag = true;
+  req_shaper_status = endisable;
+  // Planner task request endisable shaper, just mark this flag and do it in AixsMng::loop().
+  if (xTaskGetCurrentTaskHandle() == sm2_handle->planner) {
+    return true;
+  }
+  // Other task request endisable shaper, mark and wait.
+  else {
+    wait = 300;
+    while(req_endisable_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
+    if (req_endisable_shaper_flag) {
+      LOG_E("Can endisable shaper timeout\n");
+      return false;
+    }
+    req_endisable_shaper_flag = false;
+    return true;
+  }
+}
+
+bool AxisMng::req_update_shaper(void) {
+  uint32_t wait;
+
+  wait = 100;
+  while(req_update_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
+  if (req_update_shaper_flag) {
+    LOG_E("Can not request reset shaper as other thread doing\n");
+    return false;
+  }
+
+  req_update_shaper_flag = true;
+  // Planner task request update shaper and do it in AxisMng::loop
+  if (xTaskGetCurrentTaskHandle() == sm2_handle->planner) {
+    return true;
+  }
+  // Other task request update shpaer, mark a flag and wait
+  else {
+    wait = 300;
+    while(req_update_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
+    if (req_update_shaper_flag) {
+      LOG_E("Can reset shaper timeout\n");
+      return false;
+    }
+    req_update_shaper_flag = false;
+    return true;
+  }
+}
+
+bool AxisMng::req_reset_shaper(void) {
+  uint32_t wait;
+
+  wait = 100;
+  while(req_reset_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
+  if (req_reset_shaper_flag) {
+    LOG_E("Can not request reset shaper as other thread doing\n");
+    return false;
+  }
+
+  req_reset_shaper_flag = true;
+  // Planner task request to reset shaper, just mark and do it in AxisMng::loop()
+  if (xTaskGetCurrentTaskHandle() == sm2_handle->planner) {
+    return true;
+  }
+  // Other task request to reset shaper, mark flag and wait
+  else {
+    wait = 300;
+    while(req_reset_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
+    if (req_reset_shaper_flag) {
+      LOG_E("Can reset shaper timeout\n");
+      return false;
+    }
+    req_reset_shaper_flag = false;
+    return true;
+  }
 }

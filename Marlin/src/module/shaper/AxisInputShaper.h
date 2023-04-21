@@ -10,11 +10,13 @@
 // #define LOG_MIDDLE_POS
 // #define SHAPER_LOG_ENABLE
 // #define LOG_MOTION_INFO
+// #define LOG_PRINT_POS
 #define START_TICK                    (0xFAA2B57F)
 #define SHAPER_VIBRATION_REDUCTION    (20)
 #define LOOP_SHAPER_AXES(VAR)         LOOP_S_L_N(VAR, 0, NUM_AXIS)
 #define INVALID_FILE_POS              (0xFFFFFFFF)
 #define INVALID_SYNC_POS              (0x7FFFFFFF)
+#define EMPTY_MOVE_TIME_TICK          (500 * STEPPER_TIMER_TICKS_PER_MS)
 
 #define SP_DEFT_TYPE                  (InputShaperType::ei)
 #define SP_DEFT_FREQ                  (50)
@@ -166,13 +168,14 @@ class AxisMng
 
 public:
   void init(MoveQueue *mq, uint32_t m2t);
+  void loop(void);
+  bool planner_sync(void);
   void load_shaper_setting(void);
-  void update_shaper(void);
+  bool update_shaper(void);
   bool input_shaper_set(int axis, int type, float freq, float dampe);
   bool input_shaper_get(int axis, int &type, float &freq, float &dampe);
-  void enable_shaper(void);
-  void disable_shaper(void);
-  void reset_shaper(void);
+  bool endisable_shaper(bool endisable);
+  bool reset_shaper(void);
   void log_xy_shpaer(void);
   bool prepare(uint8_t m_idx);
   void logShaperWindows();
@@ -181,6 +184,10 @@ public:
   void abort();
   void updateOldestPluesTick();
   AxisInputShaper *findNearestPrintTickAxis();
+
+  bool req_endisable_shaper(bool endisble);
+  bool req_update_shaper(void);
+  bool req_reset_shaper(void);
 
 public:
   bool is_init = false;
@@ -201,6 +208,13 @@ public:
   #ifdef LOG_MIDDLE_POS
   circular_buffer<float> tgf_middle_pos_rb;
   #endif
+
+  bool endisable;                     // Shaper enable or disabel
+  bool req_endisable_shaper_flag;     // Request flag
+  bool req_shaper_status;             // When request from other task, record the request's status
+
+  bool req_update_shaper_flag;        // Request update flag
+  bool req_reset_shaper_flag;         // Request reset flag
 };
 
 extern AxisMng axis_mng;

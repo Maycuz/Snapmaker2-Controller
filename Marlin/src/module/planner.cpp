@@ -1225,6 +1225,8 @@ void Planner::shaped_loop() {
   static block_t *bt = nullptr;
   uint8_t block_num = movesplanned();
 
+  axis_mng.loop();
+
   if (axis_mng.reqAbort) {
     clear_block_buffer();
     delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
@@ -1304,7 +1306,8 @@ void Planner::shaped_loop() {
 
   // No block, no activeDM and steps will runout, add a empty move
   block_num = movesplanned();
-  if (step_generating &&
+  if (axis_mng.endisable &&
+      step_generating &&
       block_num == 0 &&
       steps_seq.getBufMilliseconds() < 5) {
     LOG_I("### No more motion, add a empty move for shaper finish\r\n");

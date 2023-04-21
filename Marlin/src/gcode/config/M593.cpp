@@ -46,12 +46,21 @@ void report_M593(void) {
  *      D: damping ration
  */
 void GcodeSuite::M593() {
+
   bool x = parser.seen('X');
   bool y = parser.seen('Y');
+  bool p = parser.seen('P');
+  bool f = parser.seen('F');
+  bool d = parser.seen('D');
+  bool r = parser.seen('R');
+
+  if (!p && !f && !d && !r) {
+    report_M593();
+    return;
+  }
 
   if (parser.seen('R')) {
-    planner.synchronize();
-    axis_mng.reset_shaper();
+    axis_mng.req_reset_shaper();
     report_M593();
     return;
   }
@@ -61,7 +70,6 @@ void GcodeSuite::M593() {
     y = true;
   }
 
-  planner.synchronize();
   if (x) {
     AxisInputShaper *axis_input_shaper = axis_mng.x_sp;
     float frequency = parser.floatval('F', axis_input_shaper->frequency);
@@ -77,7 +85,6 @@ void GcodeSuite::M593() {
     int type = parser.byteval('P', (int)axis_input_shaper->type);
     axis_mng.input_shaper_set(Y_AXIS, type, frequency, zeta);
   }
-  axis_mng.abort();
-  axis_mng.update_shaper();
+  axis_mng.req_update_shaper();
   report_M593();
 }

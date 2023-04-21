@@ -38,6 +38,7 @@ struct SnapmakerHandle {
   TaskHandle_t heartbeat;
   TaskHandle_t can_recv;
   TaskHandle_t can_event;
+  TaskHandle_t planner;
 
   MessageBufferHandle_t event_queue;
   EventGroupHandle_t    event_group;

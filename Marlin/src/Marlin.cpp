@@ -809,6 +809,12 @@ void idle(
     bool no_stepper_sleep/*=false*/
   #endif
 ) {
+
+  if (xTaskGetCurrentTaskHandle() == sm2_handle->marlin) {
+    vTaskDelay(pdMS_TO_TICKS(5));
+    return;
+  }
+
   #if ENABLED(MAX7219_DEBUG)
     max7219.idle_tasks();
   #endif

@@ -230,7 +230,8 @@ void MoveQueue::moveTailForward(uint32_t print_tick) {
   if (!is_init)
     return;
 
-  while ((move_tail != move_head) && ELAPSED(print_tick, moves[move_tail].end_tick + SAFE_ISOLATION_TIME_STRIP)) {
+  // while ((move_tail != move_head) && ELAPSED(print_tick, moves[move_tail].end_tick + SAFE_ISOLATION_TIME_STRIP)) {
+  while ((move_tail != move_head) && ELAPSED(print_tick, moves[move_tail].end_tick)) {
     // LOG_I("print_tick %d, move[tail] end_tick %d\r\n", print_tick, moves[move_tail].end_tick);
     moves[move_tail].reset();
     move_tail = MOVE_MOD(move_tail + 1);

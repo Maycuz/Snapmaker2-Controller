@@ -615,7 +615,10 @@ ErrCode SystemService::StartWork(TriggerSource s) {
   case MODULE_TOOLHEAD_3DP:
   case MODULE_TOOLHEAD_DUALEXTRUDER:
     // shpaer enable
-    axis_mng.enable_shaper();
+    if (!axis_mng.req_endisable_shaper(true)) {
+      LOG_E("Can not enbale shaper\n");
+      return E_FAILURE;
+    }
     if (runout.is_filament_runout()) {
       fault_flag_ |= FAULT_FLAG_FILAMENT;
       LOG_E("No filemant!\n");
@@ -626,7 +629,10 @@ ErrCode SystemService::StartWork(TriggerSource s) {
   case MODULE_TOOLHEAD_LASER:
   case MODULE_TOOLHEAD_LASER_10W:
     // shaper disable
-    axis_mng.disable_shaper();
+    if (!axis_mng.req_endisable_shaper(false)) {
+      LOG_E("Can not disable shaper\n");
+      return E_FAILURE;
+    }
     is_laser_on = false;
     is_waiting_gcode = false;
   case MODULE_TOOLHEAD_CNC:
