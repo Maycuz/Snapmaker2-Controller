@@ -138,6 +138,7 @@ block_t Stepper::pause_block;
 bool Stepper::sif_valid = false;
 uint32_t Stepper::wait_sif_countdown;
 struct StepTimeDir Stepper::step_time_dir;
+circular_buffer<bool> Stepper::step_runout_rb;
 
 uint8_t axis_to_port[X_TO_E] = DEFAULT_AXIS_TO_PORT;
 // private:
@@ -1357,6 +1358,7 @@ void Stepper::ts_isr() {
   return;
   #endif
 
+  static bool last_got_step = false;
   bool recursion = false;
 
   // Program timer compare for the maximum period, so it does NOT
@@ -1479,6 +1481,8 @@ void Stepper::ts_isr() {
         }
         else {
           sif_valid = false;
+          // Re wait for 100ms seconds
+          wait_sif_countdown = 100;
         }
       }
     }
@@ -1490,11 +1494,12 @@ void Stepper::ts_isr() {
     else  {
       sif_valid = false;
       // wait for 100ms seconds
-      wait_sif_countdown = 10;
+      wait_sif_countdown = 100;
     }
   }
 
   if (sif_valid) {
+    last_got_step = true;
     struct StepFlagData flag_data;
     if (step_time_dir.sync || step_time_dir.update_file_pos) {
       steps_flag.popQueue(&flag_data);
@@ -1510,7 +1515,7 @@ void Stepper::ts_isr() {
       goto __out_pluse_falling_edge;
     }
 
-    if (step_time_dir.itv > (HAL_timer_get_count(STEP_TIMER_NUM) + 4 * STEPPER_TIMER_TICKS_PER_US)) {
+    if (step_time_dir.itv > (HAL_timer_get_count(STEP_TIMER_NUM) + 6 * STEPPER_TIMER_TICKS_PER_US)) {
       HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv - HAL_timer_get_count(STEP_TIMER_NUM)));
       goto __out_pluse_falling_edge;
     }
@@ -1525,6 +1530,10 @@ void Stepper::ts_isr() {
     #endif
     axis_did_move = 0;
     HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
+    if (last_got_step) {
+      last_got_step = false;
+      step_runout_rb.push(true);
+    }
     #ifdef DEBUG_IO
     WRITE(DEBUG_IO, 0);
     #endif
