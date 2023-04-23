@@ -102,6 +102,12 @@ struct input_shaper_setting {
   float dampe;
 };
 
+struct step_seq_statistics_info {
+  uint32_t sys_time_ms;
+  float use_rate;
+  float prepare_time_ms;
+};
+
 class AxisInputShaper
 {
 public:
@@ -208,6 +214,7 @@ public:
   #ifdef LOG_MIDDLE_POS
   circular_buffer<float> tgf_middle_pos_rb;
   #endif
+  circular_buffer<struct step_seq_statistics_info> step_seq_statistics_rb;
 
   bool endisable;                     // Shaper enable or disabel
   bool req_endisable_shaper_flag;     // Request flag

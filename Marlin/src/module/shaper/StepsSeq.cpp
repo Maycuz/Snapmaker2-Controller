@@ -88,6 +88,10 @@ float StepsSeq::getBufMilliseconds() {
   return getBufTick() * 1000 / STEPPER_TIMER_RATE;
 }
 
+float StepsSeq::useRate(void) {
+  return 100.0 * count() / steps_seq.SIZE;
+}
+
 void StepsSeq::logSize() {
   LOG_I("empty: %s\r\n", isEmpty() ? "yes" : "no");
   LOG_I("full: %s\r\n", isFull() ? "yes" : "no");

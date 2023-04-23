@@ -309,6 +309,15 @@ bool AxisInputShaper::getStep() {
   if (g1.valid) {
     return true;
   }
+  // else {
+  //   genNextStep(g1);
+  //   if (g1.valid) {
+  //     return true;
+  //   }
+  //   else {
+  //     return false;
+  //   }
+  // }
 
   if (g2.valid) {
     g1 = g2;
@@ -326,15 +335,16 @@ bool AxisInputShaper::getStep() {
   genNextStep(g2);
 
   if (g1.valid && g2.valid && (g1.dir != g2.dir)) {
-    if (!const_dist_hold) {
+    // if (!const_dist_hold) {
+    {
       g1.out_step = g2.out_step = false;
       #ifdef SHAPER_LOG_ENABLE
       LOG_I("Abolish steps: axis %d, pos %f == %f\n", axis, g1.pos, g2.pos);
       #endif
     }
-    else {
-      LOG_I("A const hold move segment, do NOT abolish steps when change dir\n");
-    }
+    // else {
+    //   LOG_I("A const hold move segment, do NOT abolish steps when change dir\n");
+    // }
   }
 
   return true;
@@ -867,6 +877,12 @@ bool AxisMng::reset_shaper(void) {
 }
 
 void AxisMng::log_xy_shpaer(void) {
+  // SERIAL_ECHOPAIR("X type: ", input_shaper_type_name[int(x_sp->type)]);
+  // SERIAL_ECHOPAIR(" frequency: ", x_sp->frequency);
+  // SERIAL_ECHOLNPAIR(" zeta: ", x_sp->zeta);
+  // SERIAL_ECHOPAIR("Y type: ", input_shaper_type_name[int(y_sp->type)]);
+  // SERIAL_ECHOPAIR(" frequency: ", y_sp->frequency);
+  // SERIAL_ECHOLNPAIR(" zeta: ", y_sp->zeta);
   LOG_I("X type: %s, frequency: %lf, zeta: %lf\n", input_shaper_type_name[int(x_sp->type)], x_sp->frequency, x_sp->zeta);
   LOG_I("Y type: %s, frequency: %lf, zeta: %lf\n", input_shaper_type_name[int(y_sp->type)], y_sp->frequency, y_sp->zeta);
 }

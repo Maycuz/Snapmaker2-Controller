@@ -103,6 +103,7 @@ Stepper stepper; // Singleton
 #include "../../../snapmaker/src/module/emergency_stop.h"
 #include "../../../snapmaker/src/snapmaker.h"
 #include "../../../snapmaker/src/module/toolhead_laser.h"
+#include "./shaper/AxisInputShaper.h"
 
 #if MB(ALLIGATOR)
   #include "../feature/dac/dac_dac084s085.h"
@@ -138,7 +139,7 @@ block_t Stepper::pause_block;
 bool Stepper::sif_valid = false;
 uint32_t Stepper::wait_sif_countdown;
 struct StepTimeDir Stepper::step_time_dir;
-circular_buffer<bool> Stepper::step_runout_rb;
+circular_buffer<struct step_runout> Stepper::step_runout_rb;
 
 uint8_t axis_to_port[X_TO_E] = DEFAULT_AXIS_TO_PORT;
 // private:
@@ -1428,9 +1429,10 @@ void Stepper::ts_isr() {
       set_directions();
     }
     // Update axies move bits
-    if (axis_did_move != step_time_dir.move_bits) {
+    // if (axis_did_move != step_time_dir.move_bits) {
       axis_did_move = step_time_dir.move_bits;
-    }
+    //}
+    axis_did_move = step_time_dir.move_bits;
 
     // Out put plus
     if (step_time_dir.out_step) {
@@ -1515,7 +1517,7 @@ void Stepper::ts_isr() {
       goto __out_pluse_falling_edge;
     }
 
-    if (step_time_dir.itv > (HAL_timer_get_count(STEP_TIMER_NUM) + 6 * STEPPER_TIMER_TICKS_PER_US)) {
+    if (step_time_dir.itv > (HAL_timer_get_count(STEP_TIMER_NUM) + 4 * STEPPER_TIMER_TICKS_PER_US)) {
       HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv - HAL_timer_get_count(STEP_TIMER_NUM)));
       goto __out_pluse_falling_edge;
     }
@@ -1532,7 +1534,14 @@ void Stepper::ts_isr() {
     HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
     if (last_got_step) {
       last_got_step = false;
-      step_runout_rb.push(true);
+      struct step_runout sri;
+      sri.sys_time_ms = millis();
+      step_runout_rb.push(sri);
+      struct step_seq_statistics_info sssi;
+      sssi.sys_time_ms = millis();
+      sssi.use_rate = steps_seq.useRate();
+      sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
+      axis_mng.step_seq_statistics_rb.push(sssi);
     }
     #ifdef DEBUG_IO
     WRITE(DEBUG_IO, 0);

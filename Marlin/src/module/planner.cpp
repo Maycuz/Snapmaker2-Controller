@@ -1279,7 +1279,18 @@ void Planner::shaped_loop() {
   // #ifdef DEBUG_IO
   // WRITE(DEBUG_IO, 1);
   // #endif
+  struct step_seq_statistics_info sssi;
+  sssi.sys_time_ms = millis();
+  sssi.use_rate = steps_seq.useRate();
+  sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
   bool has_gen_steps = genStep();
+  if (has_gen_steps) {
+    axis_mng.step_seq_statistics_rb.push(sssi);
+    sssi.sys_time_ms = millis();
+    sssi.use_rate = steps_seq.useRate();
+    sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
+    axis_mng.step_seq_statistics_rb.push(sssi);
+  }
   // #ifdef DEBUG_IO
   // WRITE(DEBUG_IO, 0);
   // #endif
@@ -1322,10 +1333,11 @@ void Planner::shaped_loop() {
 
   if (step_generating) {
     uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
-    if (prepare_time_ms > 10)
-      vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/2));
+    if (prepare_time_ms > 10) {
+      vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/4));
+    }
     else {
-      if (has_gen_steps && block_num) {
+      if (has_gen_steps && block_num && block_buffer_nonbusy != block_buffer_planned) {
         // continue
       }
       else {

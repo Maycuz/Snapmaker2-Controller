@@ -3355,7 +3355,7 @@ void MarlinSettings::reset() {
       M217_report(true);
     #endif
 
-    axis_mng.log_xy_shpaer();
+    // axis_mng.log_xy_shpaer();
   }
 
 #endif // !DISABLE_M503

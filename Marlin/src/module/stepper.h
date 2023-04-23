@@ -238,6 +238,10 @@ enum {
 
 extern uint8_t axis_to_port[X_TO_E];
 
+struct step_runout {
+  uint32_t sys_time_ms;
+};
+
 class Stepper {
 
   public:
@@ -245,7 +249,7 @@ class Stepper {
     static bool sif_valid;
     static uint32_t wait_sif_countdown;
     static struct StepTimeDir step_time_dir;
-    static circular_buffer<bool> step_runout_rb;
+    static circular_buffer<struct step_runout> step_runout_rb;
 
     #if ENABLED(DEBUG_ISR_LATENCY)
       static uint16_t pre_isr_ticks;

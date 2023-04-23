@@ -47,12 +47,13 @@ public:
   uint32_t count();
   uint32_t getBufTick();
   float getBufMilliseconds();
+  float useRate(void);
   void logSize();
   void push_pop_test(uint32_t round);
   void buf_tick_test(uint32_t round);
 
 public:
-  static const uint32_t SIZE = 1024;
+  static const uint32_t SIZE = 2048;
 
 private:
   struct StepTimeDir buf[SIZE];

@@ -267,17 +267,34 @@ static void hmi_task(void *param) {
 }
 
 void motion_info_log(void) {
-  static uint32_t last_milliseconds = 0;
-  if (PENDING(millis(), last_milliseconds+1000))
-    return;
-  last_milliseconds = millis();
 
-  // LOG_I("Steps seq's use rate: %.1f%%, prepare time %f ms, delta_e %f\r\n",
-  //       100.0 * steps_seq.count() / steps_seq.SIZE, steps_seq.getBufMilliseconds(), axis_mng.e_sp->delta_e);
+  static uint32_t _1_last_milliseconds = 0 ;
+  if (ELAPSED(millis(), _1_last_milliseconds+10)) {
+    _1_last_milliseconds = millis();
+    // LOG_I("Steps seq's use rate: %.1f%%, prepare time %f ms, delta_e %f\r\n", steps_seq.useRate(), steps_seq.getBufMilliseconds(), axis_mng.e_sp->delta_e);
+    // struct step_seq_statistics_info _1_sssi, _2_sssi;
+    // if (axis_mng.step_seq_statistics_rb.pop(_1_sssi)) {
+    //   LOG_I("%d: StepsSeq's use rate: %.1f%%, prepare time %f ms\n", _1_sssi.sys_time_ms, _1_sssi.use_rate, _1_sssi.prepare_time_ms);
+    // }
+    // if (axis_mng.step_seq_statistics_rb.pop(_2_sssi)) {
+    //   LOG_I("%d: StepsSeq's use rate: %.1f%%, prepare time %f ms\n", _2_sssi.sys_time_ms, _2_sssi.use_rate, _2_sssi.prepare_time_ms);
+    //   LOG_I("Each step's caculation task %.1f us\n\n",
+    //   (float)(_2_sssi.sys_time_ms - _1_sssi.sys_time_ms) * 100 * 1000 / (StepsSeq::SIZE * (_2_sssi.use_rate - _1_sssi.use_rate)));
+    // }
+  }
 
   // LOG_I("block file pos %u\n", stepper.pause_block.filePos);
   // LOG_I("stepper pos: %d %d %d %d\n",
   //   stepper.position(X_AXIS), stepper.position(Y_AXIS), stepper.position(Z_AXIS), stepper.position(E_AXIS));
+
+  static uint32_t _2_last_milliseconds = 0;
+  if (ELAPSED(millis(), _2_last_milliseconds+10)) {
+    _2_last_milliseconds = millis();
+    struct step_runout step_runout;
+    if (stepper.step_runout_rb.pop(step_runout)) {
+      LOG_I("%d: ### NOTE! ### Step runout in %d ms\n", step_runout.sys_time_ms);
+    }
+  }
 }
 
 static void heartbeat_task(void *param) {
