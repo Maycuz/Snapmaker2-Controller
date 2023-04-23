@@ -783,6 +783,14 @@ bool AxisMng::update_shaper(void) {
   b_sp->init(B_AXIS, mq, b_sp->type, b_sp->frequency, b_sp->zeta, ms2tick);
   e_sp->init(E_AXIS, mq, e_sp->type, e_sp->frequency, e_sp->zeta, ms2tick);
 
+  endisable = false;
+  LOOP_SHAPER_AXES(i) {
+    if (axes[i].type != InputShaperType::none) {
+      endisable = true;
+      break;
+    }
+  }
+
   LOG_I("Update_shaper, adding a empty move after update\r\n");
   moveQueue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
   axis_mng.prepare(moveQueue.move_tail);
