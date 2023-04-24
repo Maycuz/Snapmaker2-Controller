@@ -125,7 +125,61 @@ public:
   void reset();
   void setConfig(int type, float frequency, float zeta);
   bool prepare(int m_idx);
-  bool genNextStep(struct genStep &gs);
+  // bool genNextStep(struct genStep &gs);
+  // bool genNextStepTime();
+  FORCE_INLINE bool genNextStepTime() {
+    if (have_gen_step_tick) {
+      return true;
+    }
+
+    if (tgf_1.flag) {
+      if (getTimeFromTgf(tgf_1)){
+        return true;
+      }
+      else {
+        tgf_1.flag = 0;
+        return genNextStepTime();
+      }
+    }
+    #if 0
+    if (tgf_1.flag) {
+      if (getTimeFromTgf(tgf_1)){
+        return true;
+      }
+      else {
+        tgf_1.flag = 0;
+        return genNextStepTime();
+      }
+    }
+    else if(tgf_2.flag) {
+      if (getTimeFromTgf(tgf_2)){
+        return true;
+      }
+      else {
+        tgf_2.flag = 0;
+        return genNextStepTime();
+      }
+    }
+    else {
+      for (;;) {
+        if (moveShaperWindowToNext()) {
+          calcShaperWindowEndPosAndTime();
+          if (generateShapedFuncParams()) {
+            return genNextStepTime();
+          }
+          else {
+            // current print tick and positoin must update to shapper window
+            print_tick = shaper_window.tick;
+            print_pos = shaper_window.pos;
+          }
+        }
+        else {
+          return false;
+        }
+      }
+    }
+    #endif
+  }
   bool getStep();
   void logShaperWindow();
   uint32_t getShaperWindown();
@@ -139,7 +193,73 @@ private:
   void calcShaperWindowEndPosAndTime();
   bool moveShaperWindowToNext();
   bool generateShapedFuncParams();
-  bool getTimeFromTgf(TimeGenFunc &tgf);
+  FORCE_INLINE bool getTimeFromTgf(TimeGenFunc &tgf) {
+    float np;
+    float ns;
+
+    if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
+      tgf.flag = 0;
+      have_gen_step_tick = true;
+      return true;
+    }
+
+    // float safe_strip = EPSILON;
+    if (tgf.monotone < 0) {
+      np = print_pos - mm_per_step;
+      ns = print_pos - mm_per_half_step;
+      // if (ns < tgf.end_pos - EPSILON) {
+      // if (np < tgf.end_pos - EPSILON) {
+      if (ns < tgf.end_pos) {
+        #ifdef SHAPER_LOG_ENABLE
+        LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
+        #endif
+        return false;
+      }
+    }
+    else if (tgf.monotone > 0) {
+      np = print_pos + mm_per_step;
+      ns = print_pos + mm_per_half_step;
+      // if (ns > tgf.end_pos + EPSILON) {
+      // if (np > tgf.end_pos + EPSILON) {
+      if (ns > tgf.end_pos) {
+        #ifdef SHAPER_LOG_ENABLE
+        LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
+        #endif
+        return false;
+      }
+    }
+    else {
+      return false;
+    }
+
+    // float delta_dist = (float)(tgf.start_pos - ns);
+    #ifdef SHAPER_LOG_ENABLE
+    LOG_I("Axis %d delta_dist %f\r\n", axis, delta_dist);
+    #endif
+    // float t_ms = tgf.dist2time(delta_dist);
+    // if (t_ms < 0.0) {
+    //   // When we can make sure this will NOT hanppen?
+    //   LOG_E("### ERROR ###: t_ms(%f) < 0.0)\r\n", t_ms);
+    //   t_ms = 0;
+    // }
+
+    #ifdef SHAPER_LOG_ENABLE
+    uint32_t lt = print_tick;
+    #endif
+    // print_tick = tgf.start_tick + (uint32_t)LROUND((t_ms * ms2tick));
+    print_tick = tgf.start_tick + LROUND(tgf.dist2time(tgf.start_pos - ns) * ms2tick);
+    dir = tgf.monotone;
+    print_pos = np;
+
+    #ifdef SHAPER_LOG_ENABLE
+    float itv = ((float)print_tick - lt) / ms2tick;
+    LOG_I("Axis %d, print_pos %.1f, sample_pos %.1f, start_tick %u, strip %f, ", axis, np, ns, tgf.start_tick, safe_strip);
+    LOG_I("tgf return t %.3fms, last tick %u, cur tick %u, itv %.3fms, dir %d\n", t_ms, lt, print_tick, itv, dir);
+    #endif
+
+    have_gen_step_tick = true;
+    return true;
+  };
 
 public:
   int axis;
@@ -147,6 +267,7 @@ public:
 
   float print_pos;
   uint32_t print_tick;
+  bool have_gen_step_tick;
 
   bool const_dist_hold;
   struct genStep g1, g2;
@@ -175,7 +296,7 @@ public:
   float mm_per_step;
   float mm_per_half_step;
 
-  bool no_move;
+  bool no_more_move;
 };
 
 class AxisMng
@@ -194,11 +315,83 @@ public:
   void log_xy_shpaer(void);
   bool prepare(uint8_t m_idx);
   void logShaperWindows();
-  bool getNextStep(StepInfo &step_info);
+  // bool getNextStep(StepInfo &step_info);
+  FORCE_INLINE bool getNextStep(StepInfo &step_info) {
+
+    AxisInputShaper *dm = findNearestPrintTickAxis();
+    if (dm) {
+      if (PENDING(dm->print_tick, cur_print_tick)) {
+        LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->print_tick));
+        dm->print_tick = cur_print_tick;
+      }
+      if (!dm->have_gen_step_tick) {
+        LOG_E("### ERROR ####: got a in-have gen step tick\r\n");
+      }
+
+      // step time
+      step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
+      step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
+      step_info.time_dir.move_bits = 1<<dm->axis;
+      step_info.time_dir.axis = dm->axis;
+
+      // step flag data, sync and block position
+      step_info.time_dir.sync = 0;
+      if (INVALID_SYNC_POS != dm->sync_pos) {
+        step_info.time_dir.sync = 1;
+        // LOG_I("Axis %d sync in gen next step\n", dm->axis);
+        step_info.flag_data.sync_pos = dm->sync_pos;
+        dm->sync_pos = INVALID_SYNC_POS;
+      }
+      step_info.time_dir.update_file_pos = 0;
+      if (E_AXIS == dm->axis && INVALID_FILE_POS != dm->file_pos) {
+        step_info.time_dir.update_file_pos = 1;
+        step_info.flag_data.file_pos = dm->file_pos;
+        dm->file_pos = INVALID_FILE_POS;
+      }
+
+      cur_print_tick = dm->print_tick;
+      dm->have_gen_step_tick = false;
+
+      return true;
+    }
+    else {
+      return false;
+    }
+
+  };
   bool tgfValid();
   void abort();
   void updateOldestPluesTick();
-  AxisInputShaper *findNearestPrintTickAxis();
+  // AxisInputShaper *findNearestPrintTickAxis();
+  FORCE_INLINE AxisInputShaper *findNearestPrintTickAxis() {
+
+    // if (axes[0].genNextStepTime())
+    //   return &axes[0];
+    // else
+    //   return nullptr;
+
+    AxisInputShaper *nearest_axis = nullptr;
+    LOOP_SHAPER_AXES(i) {
+      axes[i].genNextStepTime();
+      if (axes[i].have_gen_step_tick) {
+        if (nearest_axis) {
+          if (PENDING(axes[i].print_tick, nearest_axis->print_tick)) {
+            nearest_axis = &axes[i];
+          }
+        }
+        else {
+          nearest_axis = &axes[i];
+        }
+      }
+    }
+
+    if (nearest_axis && ELAPSED(nearest_axis->print_tick, mq->can_print_head_tick)) {
+      LOG_I("ActiveDM(%d)'s tick must wait for move's gen step tick\r\n", nearest_axis->axis);
+      nearest_axis = nullptr;
+    }
+
+    return nearest_axis;
+  }
 
   bool req_endisable_shaper(bool endisble);
   bool req_update_shaper(void);

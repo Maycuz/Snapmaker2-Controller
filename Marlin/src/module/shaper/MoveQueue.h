@@ -58,7 +58,19 @@ public:
   void addSyncMove(int32_t sync_pos[]);
   Move *addMove(float sv, float ev, float acc, float dist, float axis_r[], uint32_t t);
   bool genMoves(block_t* block);
-  float getAxisPosition(int m_idx, int axis, uint32_t time);
+  // float getAxisPosition(int m_idx, int axis, uint32_t time);
+  FORCE_INLINE float getAxisPosition(int move_index, int axis, uint32_t tick) {
+  // int MoveQueue::getAxisPosition(int move_index, int axis, uint32_t tick) {
+    Move &move = moves[move_index];
+    float axis_r = move.axis_r[axis];
+    float delta_time = (float)(tick - move.start_tick) / ms2tick;
+    // LOG_I("Tick %d, move.start_tick %d, delta_time %f\r\n", tick, move.start_tick, delta_time);
+    // int move_dist = LROUND((move.start_v + 0.5f * move.accelerate * delta_time) * delta_time * axis_r);
+    // float move_dist = (move.start_v + 0.5f * move.accelerate * delta_time) * delta_time * axis_r;
+    // return move.start_pos[axis] + move_dist;
+    // return  move_dist;
+    return move.start_pos[axis] + (move.start_v + 0.5f * move.accelerate * delta_time) * delta_time * axis_r;
+  };
   // int getAxisPosition(int m_idx, int axis, uint32_t time);
   void moveTailForward(uint32_t print_tick);
   bool haveMotion();

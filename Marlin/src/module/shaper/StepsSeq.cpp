@@ -9,88 +9,77 @@ void StepFlag::reset() {
   head = tail = 0;
 }
 
-bool StepFlag::pushQueue(struct StepFlagData &fd) {
-  if (!isFull()) {
-    buf[head] = fd;
-    head = (head + 1) % SIZE;
-    return true;
-  }
-  else {
-    return false;
-  }
-}
+// bool StepFlag::popQueue(struct StepFlagData *fd) {
+//   if (!isEmpty()) {
+//     *fd = buf[tail];
+//     tail = (tail + 1) % SIZE;
+//     return true;
+//   }
+//   else {
+//     return false;
+//   }
+// }
 
-bool StepFlag::popQueue(struct StepFlagData *fd) {
-  if (!isEmpty()) {
-    *fd = buf[tail];
-    tail = (tail + 1) % SIZE;
-    return true;
-  }
-  else {
-    return false;
-  }
-}
+// bool StepFlag::isEmpty() {
+//   return head == tail;
+// }
 
-bool StepFlag::isEmpty() {
-  return head == tail;
-}
-
-bool StepFlag::isFull() {
-   return ((head + 1) % SIZE) == tail;
-}
+// bool StepFlag::isFull() {
+//    return ((head + 1) % SIZE) == tail;
+// }
 
 void StepsSeq::reset() {
   head = tail = 0;
   buf_tick_head = buf_tick_tail = 0;
 }
 
-bool StepsSeq::pushQueue(struct StepTimeDir &sif) {
-  if (!isFull()) {
-    buf[head] = sif;
-    head = (head + 1) % SIZE;
-    buf_tick_head += sif.itv;
-    return true;
-  }
-  else {
-    return false;
-  }
-}
+// bool StepsSeq::pushQueue(struct StepTimeDir &sif) {
+//   if (!isFull()) {
+//     buf[head] = sif;
+//     head = (head + 1) % SIZE;
+//     buf_tick_head += sif.itv;
+//     return true;
+//   }
+//   else {
+//     return false;
+//   }
+// }
 
-bool StepsSeq::popQueue(struct StepTimeDir *sif) {
-  if (!isEmpty()) {
-    *sif = buf[tail];
-    tail = (tail + 1) % SIZE;
-    buf_tick_tail += sif->itv;
-    return true;
-  }
-  else {
-    return false;
-  }
-}
+// bool StepsSeq::popQueue(struct StepTimeDir *sif) {
+//   if (!isEmpty()) {
+//     *sif = buf[tail];
+//     tail = (tail + 1) % SIZE;
+//     buf_tick_tail += sif->itv;
+//     return true;
+//   }
+//   else {
+//     return false;
+//   }
+// }
 
-bool StepsSeq::isEmpty() {
-  return head == tail;
-}
+// bool StepsSeq::isEmpty() {
+//   return head == tail;
+// }
 
-bool StepsSeq::isFull() {
-  return ((head + 1) % SIZE) == tail;
-}
+// bool StepsSeq::isFull() {
+//   return ((head + 1) % SIZE) == tail;
+// }
 
-uint32_t StepsSeq::count() {
-  return ((int)(head - tail) + SIZE) % SIZE;
-}
+// uint32_t StepsSeq::count() {
+//   return ((int)(head - tail) + SIZE) % SIZE;
+// }
 
-uint32_t StepsSeq::getBufTick() {
-  return (buf_tick_head - buf_tick_tail);
-}
+// uint32_t StepsSeq::getBufTick() {
+//   return (buf_tick_head - buf_tick_tail);
+// }
 
-float StepsSeq::getBufMilliseconds() {
-  return getBufTick() * 1000 / STEPPER_TIMER_RATE;
-}
+// float StepsSeq::getBufMilliseconds() {
+//   return getBufTick() * 1000 / STEPPER_TIMER_RATE;
+// }
 
-float StepsSeq::useRate(void) {
-  return 100.0 * count() / steps_seq.SIZE;
-}
+// float StepsSeq::useRate(void) {
+//   return 100.0 * count() / steps_seq.SIZE;
+// }
 
 void StepsSeq::logSize() {
   LOG_I("empty: %s\r\n", isEmpty() ? "yes" : "no");

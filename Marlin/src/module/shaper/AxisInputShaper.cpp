@@ -27,7 +27,7 @@ void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, float 
   this->zeta = zeta;
   this->const_dist_hold = false;
   this->tgf_1.flag = this->tgf_2.flag = false;
-  this->no_move = true;
+  this->no_more_move = true;
   shaper_init(this->type, this->frequency, this->zeta);
 }
 
@@ -242,10 +242,54 @@ bool AxisInputShaper::prepare(int m_idx) {
     print_pos = shaper_window.pos;
   }
 
-  // return genNextStep();
-  return getStep();
+  return genNextStepTime();
+  // return getStep();
 }
 
+// bool AxisInputShaper::genNextStepTime() {
+//   if (have_gen_step_tick) {
+//     return true;
+//   }
+
+//   if (tgf_1.flag) {
+//     if (getTimeFromTgf(tgf_1)){
+//       return true;
+//     }
+//     else {
+//       tgf_1.flag = 0;
+//       return genNextStepTime();
+//     }
+//   }
+//   else if(tgf_2.flag) {
+//     if (getTimeFromTgf(tgf_2)){
+//       return true;
+//     }
+//     else {
+//       tgf_2.flag = 0;
+//       return genNextStepTime();
+//     }
+//   }
+//   else {
+//     for (;;) {
+//       if (moveShaperWindowToNext()) {
+//         calcShaperWindowEndPosAndTime();
+//         if (generateShapedFuncParams()) {
+//           return genNextStepTime();
+//         }
+//         else {
+//           // current print tick and positoin must update to shapper window
+//           print_tick = shaper_window.tick;
+//           print_pos = shaper_window.pos;
+//         }
+//       }
+//       else {
+//         return false;
+//       }
+//     }
+//   }
+// }
+
+#if 0
 bool AxisInputShaper::genNextStep(struct genStep &gs) {
 
   if (tgf_1.flag) {
@@ -305,50 +349,52 @@ bool AxisInputShaper::genNextStep(struct genStep &gs) {
   }
 
 }
+#endif
 
 bool AxisInputShaper::getStep() {
-  if (g1.valid) {
-    return true;
-  }
-  else {
-    genNextStep(g1);
-    if (g1.valid) {
-      return true;
-    }
-    else {
-      return false;
-    }
-  }
-
-  if (g2.valid) {
-    g1 = g2;
-  }
-
-  if (!g1.valid) {
-    genNextStep(g1);
-    if (!g1.valid) {
-      return false;
-    }
-  }
-
-  // To here g1 has got step
-  const_dist_hold = false;
-  genNextStep(g2);
-
-  if (g1.valid && g2.valid && (g1.dir != g2.dir)) {
-    // if (!const_dist_hold) {
-    {
-      g1.out_step = g2.out_step = false;
-      #ifdef SHAPER_LOG_ENABLE
-      LOG_I("Abolish steps: axis %d, pos %f == %f\n", axis, g1.pos, g2.pos);
-      #endif
-    }
-    // else {
-    //   LOG_I("A const hold move segment, do NOT abolish steps when change dir\n");
-    // }
-  }
-
   return true;
+  // if (g1.valid) {
+  //   return true;
+  // }
+  // else {
+  //   genNextStep(g1);
+  //   if (g1.valid) {
+  //     return true;
+  //   }
+  //   else {
+  //     return false;
+  //   }
+  // }
+
+  // if (g2.valid) {
+  //   g1 = g2;
+  // }
+
+  // if (!g1.valid) {
+  //   genNextStep(g1);
+  //   if (!g1.valid) {
+  //     return false;
+  //   }
+  // }
+
+  // // To here g1 has got step
+  // const_dist_hold = false;
+  // genNextStep(g2);
+
+  // if (g1.valid && g2.valid && (g1.dir != g2.dir)) {
+  //   // if (!const_dist_hold) {
+  //   {
+  //     g1.out_step = g2.out_step = false;
+  //     #ifdef SHAPER_LOG_ENABLE
+  //     LOG_I("Abolish steps: axis %d, pos %f == %f\n", axis, g1.pos, g2.pos);
+  //     #endif
+  //   }
+  //   // else {
+  //   //   LOG_I("A const hold move segment, do NOT abolish steps when change dir\n");
+  //   // }
+  // }
+
+  // return true;
 }
 
 void AxisInputShaper::logShaperWindow() {
@@ -434,6 +480,7 @@ bool AxisInputShaper::alignToStartMove(int m_idx) {
 
   print_pos = shaper_window.lpos;
   print_tick = shaper_window.ltick;
+  have_gen_step_tick = false;
 
   return true;
 }
@@ -455,7 +502,7 @@ void AxisInputShaper::calcShaperWindowEndPosAndTime() {
   }
 
   #ifdef SHAPER_LOG_ENABLE
-  // LOG_I("Axis %d cloesest move index update to %d in plues\r\n", axis, shaper_window.pluse[shaper_window.t_cls_pls].m_idx, shaper_window.t_cls_pls);
+  LOG_I("Axis %d cloesest move index update to %d in plues\r\n", axis, shaper_window.pluse[shaper_window.t_cls_pls].m_idx, shaper_window.t_cls_pls);
   #endif
 
   // Update shaper window time and calculate shaper windown's position.
@@ -469,7 +516,7 @@ void AxisInputShaper::calcShaperWindowEndPosAndTime() {
     if (move->use_advance) {
       eda = move->delta_v * ((float)shaper_window.wind_tick/ms2tick) * move->axis_r[axis];
       #ifdef SHAPER_LOG_ENABLE
-      // LOG_I("delta_v %f delta_e %d, Eda %d\r\n", move->delta_v, delta_e, eda);
+      LOG_I("delta_v %f delta_e %d, Eda %d\r\n", move->delta_v, delta_e, eda);
       #endif
     }
     delta_e += eda;
@@ -500,7 +547,7 @@ bool AxisInputShaper::moveShaperWindowToNext() {
         #ifdef SHAPER_LOG_ENABLE
         // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
         #endif
-        if (!no_move && axis == 0) {
+        if (!no_more_move && axis == 0) {
           // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
           // move_queue_statistics_rb
           struct move_queue_statistics_info mqsi;
@@ -509,7 +556,7 @@ bool AxisInputShaper::moveShaperWindowToNext() {
           mqsi.m_tail = mq->move_tail;
           mqsi.m_count = mq->getMoveSize();
           axis_mng.move_queue_statistics_rb.push(mqsi);
-          no_move = true;
+          no_more_move = true;
         }
         return false;
       }
@@ -534,7 +581,7 @@ bool AxisInputShaper::moveShaperWindowToNext() {
     }
   }
 
-  no_move = false;
+  no_more_move = false;
   cls_p.m_idx = cls_p_m_idx;
   // First pluse move to next move, update file pos
   if (0 == shaper_window.t_cls_pls) {
@@ -647,70 +694,72 @@ bool AxisInputShaper::generateShapedFuncParams() {
   return true;
 }
 
-bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
-  float np;
-  float ns;
+// bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
+//   float np;
+//   float ns;
 
-  if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
-    tgf.flag = 0;
-    return true;
-  }
+//   if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
+//     tgf.flag = 0;
+//     have_gen_step_tick = true;
+//     return true;
+//   }
 
-  float safe_strip = EPSILON;
-  if (tgf.monotone < 0) {
-    np = print_pos - mm_per_step;
-    ns = print_pos - mm_per_half_step;
-    // if (ns < tgf.end_pos - EPSILON) {
-    // if (np < tgf.end_pos - EPSILON) {
-    if (ns - safe_strip < tgf.end_pos) {
-      #ifdef SHAPER_LOG_ENABLE
-      LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
-      #endif
-      return false;
-    }
-  }
-  else if (tgf.monotone > 0) {
-    np = print_pos + mm_per_step;
-    ns = print_pos + mm_per_half_step;
-    // if (ns > tgf.end_pos + EPSILON) {
-    // if (np > tgf.end_pos + EPSILON) {
-    if (ns + safe_strip > tgf.end_pos) {
-      #ifdef SHAPER_LOG_ENABLE
-      LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
-      #endif
-      return false;
-    }
-  }
-  else {
-    return false;
-  }
+//   float safe_strip = EPSILON;
+//   if (tgf.monotone < 0) {
+//     np = print_pos - mm_per_step;
+//     ns = print_pos - mm_per_half_step;
+//     // if (ns < tgf.end_pos - EPSILON) {
+//     // if (np < tgf.end_pos - EPSILON) {
+//     if (ns - safe_strip < tgf.end_pos) {
+//       #ifdef SHAPER_LOG_ENABLE
+//       LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
+//       #endif
+//       return false;
+//     }
+//   }
+//   else if (tgf.monotone > 0) {
+//     np = print_pos + mm_per_step;
+//     ns = print_pos + mm_per_half_step;
+//     // if (ns > tgf.end_pos + EPSILON) {
+//     // if (np > tgf.end_pos + EPSILON) {
+//     if (ns + safe_strip > tgf.end_pos) {
+//       #ifdef SHAPER_LOG_ENABLE
+//       LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
+//       #endif
+//       return false;
+//     }
+//   }
+//   else {
+//     return false;
+//   }
 
-  float delta_dist = (float)(tgf.start_pos - ns);
-  #ifdef SHAPER_LOG_ENABLE
-  // LOG_I("Axis %d delta_dist %f\r\n", axis, delta_dist);
-  #endif
-  float t_ms = tgf.dist2time(delta_dist);
-  if (t_ms < 0.0) {
-    // When we can make sure this will NOT hanppen?
-    LOG_E("### ERROR ###: t_ms(%f) < 0.0)\r\n", t_ms);
-    t_ms = 0;
-  }
+//   float delta_dist = (float)(tgf.start_pos - ns);
+//   #ifdef SHAPER_LOG_ENABLE
+//   LOG_I("Axis %d delta_dist %f\r\n", axis, delta_dist);
+//   #endif
+//   float t_ms = tgf.dist2time(delta_dist);
+//   if (t_ms < 0.0) {
+//     // When we can make sure this will NOT hanppen?
+//     LOG_E("### ERROR ###: t_ms(%f) < 0.0)\r\n", t_ms);
+//     t_ms = 0;
+//   }
 
-  #ifdef SHAPER_LOG_ENABLE
-  // uint32_t lt = print_tick;
-  #endif
-  print_tick = tgf.start_tick + (uint32_t)LROUND((t_ms * ms2tick));
-  dir = tgf.monotone;
-  print_pos = np;
+//   #ifdef SHAPER_LOG_ENABLE
+//   uint32_t lt = print_tick;
+//   #endif
+//   print_tick = tgf.start_tick + (uint32_t)LROUND((t_ms * ms2tick));
+//   dir = tgf.monotone;
+//   print_pos = np;
 
-  #ifdef SHAPER_LOG_ENABLE
-  // float itv = ((float)print_tick - lt) / ms2tick;
-  // LOG_I("Axis %d, print_pos %f, sample_pos %f, start_tick %d, strip %f, ", axis, np, ns, tgf.start_tick, safe_strip);
-  // LOG_I("tgf return t %.3fms, last tick %d, cur tick %d, itv %.3fms, dir %d\n", t_ms, lt, print_tick, itv, dir);
-  #endif
+//   #ifdef SHAPER_LOG_ENABLE
+//   float itv = ((float)print_tick - lt) / ms2tick;
+//   LOG_I("Axis %d, print_pos %.1f, sample_pos %.1f, start_tick %u, strip %f, ", axis, np, ns, tgf.start_tick, safe_strip);
+//   LOG_I("tgf return t %.3fms, last tick %u, cur tick %u, itv %.3fms, dir %d\n", t_ms, lt, print_tick, itv, dir);
+//   #endif
 
-  return true;
-}
+//   have_gen_step_tick = true;
+//   return true;
+// }
 
 void AxisMng::init(MoveQueue *mq, uint32_t ms2t) {
   reqAbort = false;
@@ -938,17 +987,56 @@ void AxisMng::logShaperWindows() {
   }
 }
 
+// bool AxisMng::getNextStep(StepInfo &step_info) {
+
+//   AxisInputShaper *dm = findNearestPrintTickAxis();
+//   if (dm) {
+//     if (PENDING(dm->print_tick, cur_print_tick)) {
+//       LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->print_tick));
+//       dm->print_tick = cur_print_tick;
+//     }
+//     if (!dm->have_gen_step_tick) {
+//       LOG_E("### ERROR ####: got a in-have gen step tick\r\n");
+//     }
+
+//     // step time
+//     step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
+//     step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
+//     step_info.time_dir.move_bits = 1<<dm->axis;
+//     step_info.time_dir.axis = dm->axis;
+
+//     // step flag data, sync and block position
+//     step_info.time_dir.sync = 0;
+//     if (INVALID_SYNC_POS != dm->sync_pos) {
+//       step_info.time_dir.sync = 1;
+//       // LOG_I("Axis %d sync in gen next step\n", dm->axis);
+//       step_info.flag_data.sync_pos = dm->sync_pos;
+//       dm->sync_pos = INVALID_SYNC_POS;
+//     }
+//     step_info.time_dir.update_file_pos = 0;
+//     if (E_AXIS == dm->axis && INVALID_FILE_POS != dm->file_pos) {
+//       step_info.time_dir.update_file_pos = 1;
+//       step_info.flag_data.file_pos = dm->file_pos;
+//       dm->file_pos = INVALID_FILE_POS;
+//     }
+
+//     cur_print_tick = dm->print_tick;
+//     dm->have_gen_step_tick = false;
+
+//     return true;
+//   }
+//   else {
+//     return false;
+//   }
+
+// }
+
+#if 0
 bool AxisMng::getNextStep(StepInfo &step_info) {
 
   AxisInputShaper *dm = findNearestPrintTickAxis();
   if (dm) {
-    // if (PENDING(dm->print_tick, cur_print_tick)) {
-    //   LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->print_tick));
-    //   dm->print_tick = cur_print_tick;
-    // }
-    // if (!dm->have_gen_step_tick) {
-    //   LOG_E("### ERROR ####: got a in-have gen step tick\r\n");
-    // }
+
     if (PENDING(dm->g1.tick, cur_print_tick)) {
       LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->g1.tick));
       dm->g1.tick = cur_print_tick;
@@ -986,6 +1074,7 @@ bool AxisMng::getNextStep(StepInfo &step_info) {
   }
 
 }
+#endif
 
 bool AxisMng::tgfValid() {
   if (!is_init)
@@ -1025,14 +1114,42 @@ void AxisMng::updateOldestPluesTick() {
   oldest_plues_tick = opt;
 }
 
+// AxisInputShaper *AxisMng::findNearestPrintTickAxis() {
+
+//   if (axes[0].genNextStepTime())
+//     return &axes[0];
+//   else
+//     return nullptr;
+
+//   AxisInputShaper *nearest_axis = nullptr;
+//   LOOP_SHAPER_AXES(i) {
+//     axes[i].genNextStepTime();
+//     if (axes[i].have_gen_step_tick) {
+//       if (nearest_axis) {
+//         if (PENDING(axes[i].print_tick, nearest_axis->print_tick)) {
+//           nearest_axis = &axes[i];
+//         }
+//       }
+//       else {
+//         nearest_axis = &axes[i];
+//       }
+//     }
+//   }
+
+//   if (nearest_axis && ELAPSED(nearest_axis->print_tick, mq->can_print_head_tick)) {
+//     LOG_I("ActiveDM(%d)'s tick must wait for move's gen step tick\r\n", nearest_axis->axis);
+//     nearest_axis = nullptr;
+//   }
+
+//   return nearest_axis;
+// }
+
+#if 0
 AxisInputShaper *AxisMng::findNearestPrintTickAxis() {
   AxisInputShaper *nearest_axis = nullptr;
   LOOP_SHAPER_AXES(i) {
-    // axes[i].genNextStep();
-    // if (axes[i].have_gen_step_tick) {
     if (axes[i].getStep()) {
       if (nearest_axis) {
-        // if (PENDING(axes[i].print_tick, nearest_axis->print_tick)) {
         if (PENDING(axes[i].g1.tick, nearest_axis->g1.tick)) {
           nearest_axis = &axes[i];
         }
@@ -1043,7 +1160,6 @@ AxisInputShaper *AxisMng::findNearestPrintTickAxis() {
     }
   }
 
-  // if (nearest_axis && ELAPSED(nearest_axis->print_tick, mq->can_print_head_tick)) {
   if (nearest_axis && ELAPSED(nearest_axis->g1.tick, mq->can_print_head_tick)) {
     // LOG_I("ActiveDM(%d)'s tick must wait for move's gen step tick\r\n", nearest_axis->axis);
     nearest_axis = nullptr;
@@ -1051,6 +1167,7 @@ AxisInputShaper *AxisMng::findNearestPrintTickAxis() {
 
   return nearest_axis;
 }
+#endif
 
 bool AxisMng::req_endisable_shaper(bool endisable) {
   uint32_t wait;

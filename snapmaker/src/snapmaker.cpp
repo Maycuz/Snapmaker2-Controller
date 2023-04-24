@@ -295,13 +295,13 @@ void motion_info_log(void) {
     }
   }
 
-  static uint32_t _3_last_milliseconds = 0;
-  if (ELAPSED(millis(), _3_last_milliseconds+10)) {
-    struct move_queue_statistics_info mqsi;
-    if (axis_mng.move_queue_statistics_rb.pop(mqsi)) {
-      LOG_I("%d: move head %d, move tail %d, move size %d\n", mqsi.sys_time_ms, mqsi.m_head, mqsi.m_tail, mqsi.m_count);
-    }
-  }
+  // static uint32_t _3_last_milliseconds = 0;
+  // if (ELAPSED(millis(), _3_last_milliseconds+10)) {
+  //   struct move_queue_statistics_info mqsi;
+  //   if (axis_mng.move_queue_statistics_rb.pop(mqsi)) {
+  //     LOG_I("%d: move head %d, move tail %d, move size %d\n", mqsi.sys_time_ms, mqsi.m_head, mqsi.m_tail, mqsi.m_count);
+  //   }
+  // }
 
 }
 

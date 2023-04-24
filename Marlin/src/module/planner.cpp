@@ -1191,27 +1191,27 @@ bool Planner::has_motion_queue() {
   }
 }
 
-bool Planner::genStep() {
-  bool have_gen = false;
+uint32_t Planner::genStep() {
+  uint32_t have_gen = 0;
   StepInfo step_info;
   while (!steps_seq.isFull() && (!axis_mng.reqAbort)) {
     if (axis_mng.getNextStep(step_info)) {
-      // LOG_I("PUSH STIF: axis:%d itv:%.3f(ms) dir:%d\r\n", step_info.axis, (float)step_info.itv * 1000 / STEPPER_TIMER_RATE, step_info.dir);
-      steps_seq.pushQueue(step_info.time_dir);
-      have_gen = true;
-      if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
-        // if (E_AXIS == step_info.time_dir.axis) {
-        //   LOG_I("2) E file pos update to %u\n", step_info.flag_data.file_pos);
-        // }
-        if (!steps_flag.pushQueue(step_info.flag_data)) {
-          #ifdef SHAPER_LOG_ENABLE
-            break;
-          #else
-          LOG_E("### steps flag have no space\r\n");
-          while(1);
-          #endif
-        }
-      }
+      // LOG_I("PUSH STIF: axis:%d itv:%.3f(ms) dir:%d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
+      // steps_seq.pushQueue(step_info.time_dir);
+      have_gen++;
+      // if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
+      //   // if (E_AXIS == step_info.time_dir.axis) {
+      //   //   LOG_I("2) E file pos update to %u\n", step_info.flag_data.file_pos);
+      //   // }
+      //   if (!steps_flag.pushQueue(step_info.flag_data)) {
+      //     #ifdef SHAPER_LOG_ENABLE
+      //       break;
+      //     #else
+      //     LOG_E("### steps flag have no space\r\n");
+      //     while(1);
+      //     #endif
+      //   }
+      // }
     }
     else {
       break;
@@ -1263,6 +1263,7 @@ void Planner::shaped_loop() {
       discard_current_block();
       bt = nullptr;
       step_generating = true;
+      // moveQueue.log();
       #ifdef SHAPER_LOG_ENABLE
       moveQueue.log();
       #endif
@@ -1283,8 +1284,11 @@ void Planner::shaped_loop() {
   sssi.sys_time_ms = millis();
   sssi.use_rate = steps_seq.useRate();
   sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
-  bool has_gen_steps = genStep();
-  if (has_gen_steps) {
+  // bool has_gen_steps = genStep();
+  uint32_t c = genStep();
+  bool has_gen_steps = c;
+  if (c) {
+    LOG_I(">>>>>>>>>>>>>>> Each step caculation take %.1f us\n", (millis() - sssi.sys_time_ms) * 1000.0 / c);
     axis_mng.step_seq_statistics_rb.push(sssi);
     sssi.sys_time_ms = millis();
     sssi.use_rate = steps_seq.useRate();
@@ -1295,25 +1299,25 @@ void Planner::shaped_loop() {
   // WRITE(DEBUG_IO, 0);
   // #endif
 
-  #ifdef SHAPER_LOG_ENABLE
+  // #ifdef SHAPER_LOG_ENABLE
   StepInfo step_info;
   // LOG_I("NO STEP GEN\r\n");
   // Consumption
   while(steps_seq.popQueue(&step_info.time_dir)) {
-    // if (step_info.time_dir.out_step) {
-    //   LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
-    // }
-    // if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
-    //   struct StepFlagData flag_data;
-    //   if(steps_flag.popQueue(&flag_data)) {
-    //     if (step_info.time_dir.sync)
-    //       LOG_I("Axis %d sync to %d\r\n", step_info.time_dir.axis, flag_data.sync_pos);
-    //     if (step_info.time_dir.update_file_pos)
-    //       LOG_I("Axis %d file pso to %d\r\n", step_info.time_dir.axis, flag_data.file_pos);
-    //   }
-    // }
+    if (step_info.time_dir.out_step) {
+      // LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
+    }
+    if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
+      struct StepFlagData flag_data;
+      if(steps_flag.popQueue(&flag_data)) {
+        // if (step_info.time_dir.sync)
+        //   LOG_I("Axis %d sync to %d\r\n", step_info.time_dir.axis, flag_data.sync_pos);
+        // if (step_info.time_dir.update_file_pos)
+        //   LOG_I("Axis %d file pso to %d\r\n", step_info.time_dir.axis, flag_data.file_pos);
+      }
+    }
   }
-  #endif
+  // #endif
 
   // No block, no activeDM and steps will runout, add a empty move
   block_num = movesplanned();

@@ -1356,8 +1356,11 @@ HAL_STEP_TIMER_ISR() {
 void Stepper::ts_isr() {
 
   #ifdef SHAPER_LOG_ENABLE
+  HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_TIMER_TYPE_MAX));
   return;
   #endif
+  HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_TIMER_TYPE_MAX));
+  return;
 
   static bool last_got_step = false;
   bool recursion = false;

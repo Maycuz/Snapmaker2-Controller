@@ -23,10 +23,29 @@ struct StepTimeDir{
 class StepFlag {
 public:
   void reset();
-  bool pushQueue(struct StepFlagData &fd);
-  bool popQueue(struct StepFlagData *fd);
-  bool isEmpty();
-  bool isFull();
+  FORCE_INLINE bool isFull() { return ((head + 1) % SIZE) == tail; };
+  FORCE_INLINE bool isEmpty() { return head == tail; };
+  FORCE_INLINE bool pushQueue(struct StepFlagData &fd) {
+    if (!isFull()) {
+      buf[head] = fd;
+      head = (head + 1) % SIZE;
+      return true;
+    }
+    else {
+      return false;
+    }
+  };
+  FORCE_INLINE bool popQueue(struct StepFlagData *fd) {
+    if (!isEmpty()) {
+      *fd = buf[tail];
+      tail = (tail + 1) % SIZE;
+      return true;
+    }
+    else {
+      return false;
+    }
+  };
+
 
 public:
   static const uint32_t SIZE = 64;
@@ -40,14 +59,42 @@ public:
 class StepsSeq {
 public:
   void reset();
-  bool pushQueue(struct StepTimeDir &sif);
-  bool popQueue(struct StepTimeDir *sif);
-  bool isEmpty();
-  bool isFull();
-  uint32_t count();
-  uint32_t getBufTick();
-  float getBufMilliseconds();
-  float useRate(void);
+  FORCE_INLINE bool isFull() { return ((head + 1) % SIZE) == tail; };
+  FORCE_INLINE bool isEmpty() { return head == tail; };
+  FORCE_INLINE bool pushQueue(struct StepTimeDir &sif) {
+    if (!isFull()) {
+      buf[head] = sif;
+      head = (head + 1) % SIZE;
+      buf_tick_head += sif.itv;
+      return true;
+    }
+    else {
+      return false;
+    }
+  };
+  FORCE_INLINE bool popQueue(struct StepTimeDir *sif) {
+    if (!isEmpty()) {
+      *sif = buf[tail];
+      tail = (tail + 1) % SIZE;
+      buf_tick_tail += sif->itv;
+      return true;
+    }
+    else {
+      return false;
+    }
+  };
+  // bool isEmpty();
+  // bool isFull();
+  // uint32_t count();
+  // uint32_t getBufTick();
+  // float getBufMilliseconds();
+
+
+  FORCE_INLINE uint32_t count() { return ((int)(head - tail) + SIZE) % SIZE; };
+  FORCE_INLINE uint32_t getBufTick() { return (buf_tick_head - buf_tick_tail); };
+  FORCE_INLINE float getBufMilliseconds() { return getBufTick() * 1000 / STEPPER_TIMER_RATE; };
+  FORCE_INLINE float useRate(void) { return 100.0 * count() / SIZE; };
+
   void logSize();
   void push_pop_test(uint32_t round);
   void buf_tick_test(uint32_t round);

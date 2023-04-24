@@ -333,7 +333,8 @@ class Planner {
 
     static bool has_motion_queue();
     static void shaped_loop();
-    static bool genStep();
+    // static bool genStep();
+    static uint32_t genStep();
 
   private:
 
