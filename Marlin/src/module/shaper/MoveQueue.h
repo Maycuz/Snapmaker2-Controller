@@ -10,7 +10,7 @@
 #define RB_IS_FULL(h, t, s)         (((h+1)%s) == t)
 #define RB_IS_EMPTY(h, t)           ((h) == (t))
 #define EMPTY_TIME                  100
-#define SAFE_ISOLATION_TIME_STRIP   (2)
+#define SAFE_ISOLATION_TIME_STRIP   (500)
 
 /*
 Distance: unint step

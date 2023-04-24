@@ -271,16 +271,15 @@ void motion_info_log(void) {
   static uint32_t _1_last_milliseconds = 0 ;
   if (ELAPSED(millis(), _1_last_milliseconds+10)) {
     _1_last_milliseconds = millis();
-    // LOG_I("Steps seq's use rate: %.1f%%, prepare time %f ms, delta_e %f\r\n", steps_seq.useRate(), steps_seq.getBufMilliseconds(), axis_mng.e_sp->delta_e);
-    // struct step_seq_statistics_info _1_sssi, _2_sssi;
-    // if (axis_mng.step_seq_statistics_rb.pop(_1_sssi)) {
-    //   LOG_I("%d: StepsSeq's use rate: %.1f%%, prepare time %f ms\n", _1_sssi.sys_time_ms, _1_sssi.use_rate, _1_sssi.prepare_time_ms);
-    // }
-    // if (axis_mng.step_seq_statistics_rb.pop(_2_sssi)) {
-    //   LOG_I("%d: StepsSeq's use rate: %.1f%%, prepare time %f ms\n", _2_sssi.sys_time_ms, _2_sssi.use_rate, _2_sssi.prepare_time_ms);
-    //   LOG_I("Each step's caculation task %.1f us\n\n",
-    //   (float)(_2_sssi.sys_time_ms - _1_sssi.sys_time_ms) * 100 * 1000 / (StepsSeq::SIZE * (_2_sssi.use_rate - _1_sssi.use_rate)));
-    // }
+    struct step_seq_statistics_info _1_sssi, _2_sssi;
+    if (axis_mng.step_seq_statistics_rb.pop(_1_sssi)) {
+      LOG_I("%d: StepsSeq's use rate: %.1f%%, prepare time %f ms\n", _1_sssi.sys_time_ms, _1_sssi.use_rate, _1_sssi.prepare_time_ms);
+    }
+    if (axis_mng.step_seq_statistics_rb.pop(_2_sssi)) {
+      LOG_I("%d: StepsSeq's use rate: %.1f%%, prepare time %f ms\n", _2_sssi.sys_time_ms, _2_sssi.use_rate, _2_sssi.prepare_time_ms);
+      LOG_I("Each step's caculation task %.1f us\n\n",
+      (float)(_2_sssi.sys_time_ms - _1_sssi.sys_time_ms) * 100 * 1000 / (StepsSeq::SIZE * (_2_sssi.use_rate - _1_sssi.use_rate)));
+    }
   }
 
   // LOG_I("block file pos %u\n", stepper.pause_block.filePos);
@@ -292,9 +291,18 @@ void motion_info_log(void) {
     _2_last_milliseconds = millis();
     struct step_runout step_runout;
     if (stepper.step_runout_rb.pop(step_runout)) {
-      LOG_I("%d: ### NOTE! ### Step runout in %d ms\n", step_runout.sys_time_ms);
+      LOG_I("%d: ### NOTE! ### Step runout\n", step_runout.sys_time_ms);
     }
   }
+
+  static uint32_t _3_last_milliseconds = 0;
+  if (ELAPSED(millis(), _3_last_milliseconds+10)) {
+    struct move_queue_statistics_info mqsi;
+    if (axis_mng.move_queue_statistics_rb.pop(mqsi)) {
+      LOG_I("%d: move head %d, move tail %d, move size %d\n", mqsi.sys_time_ms, mqsi.m_head, mqsi.m_tail, mqsi.m_count);
+    }
+  }
+
 }
 
 static void heartbeat_task(void *param) {

@@ -1300,18 +1300,18 @@ void Planner::shaped_loop() {
   // LOG_I("NO STEP GEN\r\n");
   // Consumption
   while(steps_seq.popQueue(&step_info.time_dir)) {
-    if (step_info.time_dir.out_step) {
-      LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
-    }
-    if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
-      struct StepFlagData flag_data;
-      if(steps_flag.popQueue(&flag_data)) {
-        if (step_info.time_dir.sync)
-          LOG_I("Axis %d sync to %d\r\n", step_info.time_dir.axis, flag_data.sync_pos);
-        if (step_info.time_dir.update_file_pos)
-          LOG_I("Axis %d file pso to %d\r\n", step_info.time_dir.axis, flag_data.file_pos);
-      }
-    }
+    // if (step_info.time_dir.out_step) {
+    //   LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
+    // }
+    // if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
+    //   struct StepFlagData flag_data;
+    //   if(steps_flag.popQueue(&flag_data)) {
+    //     if (step_info.time_dir.sync)
+    //       LOG_I("Axis %d sync to %d\r\n", step_info.time_dir.axis, flag_data.sync_pos);
+    //     if (step_info.time_dir.update_file_pos)
+    //       LOG_I("Axis %d file pso to %d\r\n", step_info.time_dir.axis, flag_data.file_pos);
+    //   }
+    // }
   }
   #endif
 
@@ -1330,24 +1330,31 @@ void Planner::shaped_loop() {
     step_generating = false;
   }
 
-
-  if (step_generating) {
-    uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
-    if (prepare_time_ms > 10) {
-      vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/4));
-    }
-    else {
-      if (has_gen_steps && block_num && block_buffer_nonbusy != block_buffer_planned) {
-        // continue
-      }
-      else {
-        // Can not make any more steps just delay
-        vTaskDelay(pdMS_TO_TICKS(1));
-      }
-    }
+  if (has_gen_steps && block_num && block_buffer_nonbusy != block_buffer_planned) {
+    // continue;
   }
   else {
-    vTaskDelay(pdMS_TO_TICKS(1));
+
+    if (step_generating) {
+      uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
+      if (prepare_time_ms > 10) {
+        vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/2));
+      }
+      else {
+        if (has_gen_steps && block_num) {
+          // continue
+          LOG_I("+");
+        }
+        else {
+          // Can not make any more steps just delay
+          vTaskDelay(pdMS_TO_TICKS(1));
+        }
+      }
+    }
+    else {
+      vTaskDelay(pdMS_TO_TICKS(1));
+    }
+
   }
 
 }

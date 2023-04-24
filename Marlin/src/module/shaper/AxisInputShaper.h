@@ -108,6 +108,13 @@ struct step_seq_statistics_info {
   float prepare_time_ms;
 };
 
+struct move_queue_statistics_info {
+  uint32_t sys_time_ms;
+  uint32_t m_count;
+  uint32_t m_head;
+  uint32_t m_tail;
+};
+
 class AxisInputShaper
 {
 public:
@@ -167,6 +174,8 @@ public:
   float tgf_coef_a_sum;
   float mm_per_step;
   float mm_per_half_step;
+
+  bool no_move;
 };
 
 class AxisMng
@@ -215,6 +224,7 @@ public:
   circular_buffer<float> tgf_middle_pos_rb;
   #endif
   circular_buffer<struct step_seq_statistics_info> step_seq_statistics_rb;
+  circular_buffer<struct move_queue_statistics_info> move_queue_statistics_rb;
 
   bool endisable;                     // Shaper enable or disabel
   bool req_endisable_shaper_flag;     // Request flag

@@ -27,6 +27,7 @@ void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, float 
   this->zeta = zeta;
   this->const_dist_hold = false;
   this->tgf_1.flag = this->tgf_2.flag = false;
+  this->no_move = true;
   shaper_init(this->type, this->frequency, this->zeta);
 }
 
@@ -309,15 +310,15 @@ bool AxisInputShaper::getStep() {
   if (g1.valid) {
     return true;
   }
-  // else {
-  //   genNextStep(g1);
-  //   if (g1.valid) {
-  //     return true;
-  //   }
-  //   else {
-  //     return false;
-  //   }
-  // }
+  else {
+    genNextStep(g1);
+    if (g1.valid) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
 
   if (g2.valid) {
     g1 = g2;
@@ -499,6 +500,17 @@ bool AxisInputShaper::moveShaperWindowToNext() {
         #ifdef SHAPER_LOG_ENABLE
         // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
         #endif
+        if (!no_move && axis == 0) {
+          // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
+          // move_queue_statistics_rb
+          struct move_queue_statistics_info mqsi;
+          mqsi.sys_time_ms = millis();
+          mqsi.m_head = mq->move_head;
+          mqsi.m_tail = mq->move_tail;
+          mqsi.m_count = mq->getMoveSize();
+          axis_mng.move_queue_statistics_rb.push(mqsi);
+          no_move = true;
+        }
         return false;
       }
       if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
@@ -522,6 +534,7 @@ bool AxisInputShaper::moveShaperWindowToNext() {
     }
   }
 
+  no_move = false;
   cls_p.m_idx = cls_p_m_idx;
   // First pluse move to next move, update file pos
   if (0 == shaper_window.t_cls_pls) {
@@ -674,7 +687,7 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
 
   float delta_dist = (float)(tgf.start_pos - ns);
   #ifdef SHAPER_LOG_ENABLE
-  LOG_I("Axis %d delta_dist %f\r\n", axis, delta_dist);
+  // LOG_I("Axis %d delta_dist %f\r\n", axis, delta_dist);
   #endif
   float t_ms = tgf.dist2time(delta_dist);
   if (t_ms < 0.0) {
@@ -684,16 +697,16 @@ bool AxisInputShaper::getTimeFromTgf(TimeGenFunc &tgf) {
   }
 
   #ifdef SHAPER_LOG_ENABLE
-  uint32_t lt = print_tick;
+  // uint32_t lt = print_tick;
   #endif
   print_tick = tgf.start_tick + (uint32_t)LROUND((t_ms * ms2tick));
   dir = tgf.monotone;
   print_pos = np;
 
   #ifdef SHAPER_LOG_ENABLE
-  float itv = ((float)print_tick - lt) / ms2tick;
-  LOG_I("Axis %d, print_pos %f, sample_pos %f, start_tick %d, strip %f, ", axis, np, ns, tgf.start_tick, safe_strip);
-  LOG_I("tgf return t %.3fms, last tick %d, cur tick %d, itv %.3fms, dir %d\n", t_ms, lt, print_tick, itv, dir);
+  // float itv = ((float)print_tick - lt) / ms2tick;
+  // LOG_I("Axis %d, print_pos %f, sample_pos %f, start_tick %d, strip %f, ", axis, np, ns, tgf.start_tick, safe_strip);
+  // LOG_I("tgf return t %.3fms, last tick %d, cur tick %d, itv %.3fms, dir %d\n", t_ms, lt, print_tick, itv, dir);
   #endif
 
   return true;
