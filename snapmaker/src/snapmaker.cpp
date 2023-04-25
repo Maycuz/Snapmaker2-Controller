@@ -36,6 +36,7 @@
 #include "hmi/gcode_result_handler.h"
 
 // Shapper
+#include "../../Marlin/src/module/planner.h"
 #include "../../Marlin/src/module/shaper/AxisInputShaper.h"
 #include "../../Marlin/src/module/shaper/CircularBuffer.h"
 #include "../../Marlin/src/module/shaper/MoveQueue.h"
@@ -197,13 +198,13 @@ static void planner_task(void *param) {
 
   steps_flag.reset();
   steps_seq.reset();
-  moveQueue.init(STEPPER_TIMER_TICKS_PER_MS);
-  axis_mng.init(&moveQueue, STEPPER_TIMER_TICKS_PER_MS);
+  move_queue.init(STEPPER_TIMER_TICKS_PER_MS);
+  axis_mng.init(&move_queue, STEPPER_TIMER_TICKS_PER_MS);
   axis_mng.load_shaper_setting();
 
   // LOG_I("System start, adding a empty move for shaper\r\n");
-  // moveQueue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
-  // axis_mng.prepare(moveQueue.move_tail);
+  // move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
+  // axis_mng.prepare(move_queue.move_tail);
 
   while(1) {
     planner.shaped_loop();
@@ -295,13 +296,42 @@ void motion_info_log(void) {
     }
   }
 
-  // static uint32_t _3_last_milliseconds = 0;
-  // if (ELAPSED(millis(), _3_last_milliseconds+10)) {
-  //   struct move_queue_statistics_info mqsi;
-  //   if (axis_mng.move_queue_statistics_rb.pop(mqsi)) {
-  //     LOG_I("%d: move head %d, move tail %d, move size %d\n", mqsi.sys_time_ms, mqsi.m_head, mqsi.m_tail, mqsi.m_count);
-  //   }
-  // }
+  static uint32_t _3_last_milliseconds = 0;
+  if (ELAPSED(millis(), _3_last_milliseconds+10)) {
+    _3_last_milliseconds = millis();
+    struct motion_info mi;
+    if (axis_mng.motion_info_rb.pop(mi)) {
+      LOG_I("\n%d: ====== motion info from %s ======\n", mi.sys_time_ms, mi.tag);
+      LOG_I("block count: %u, optimally planned: %u\n", mi.block_count, mi.block_planned_count);
+      LOG_I("move count and use rate: %u,\t%.1f\n", mi.move_count, mi.move_use_rate);
+      LOG_I("steps count and use rate: %u,\t%.1f\n", mi.step_count, mi.step_use_rate);
+      LOG_I("step prepare time(ms): %f\n\n", mi.step_prepare_time);
+    }
+  }
+
+  static uint32_t _4_last_milliseconds = 0;
+  if (ELAPSED(millis(), _4_last_milliseconds+10)) {
+    _4_last_milliseconds = millis();
+    // if (planner.step_generating && steps_seq.getBufMilliseconds() < 15.0) {
+    //   LOG_I("%.1f\n", steps_seq.getBufMilliseconds());
+    //   LOG_I("move head: %u, tail: %u, count: %u\n", move_queue.move_head, move_queue.move_tail, move_queue.getMoveSize());
+    //   LOOP_SHAPER_AXES(i) {
+    //     if (axis_mng.axes[i].no_more_move) {
+    //       uint32_t idx = axis_mng.axes[i].shaper_window.t_cls_pls;
+    //       LOG_I("Axis %u no move, move index%u\n", i, axis_mng.axes[i].shaper_window.pluse[idx].m_idx);
+    //     }
+    //   }
+    // }
+
+    //   LOG_I("Planner sleep ms %u, %u ~ %u, now %u, schedule cnt %u\n",
+    //   planner_sch_info.sleep_ms,
+    //   planner_sch_info.start_sleep_ms,
+    //   planner_sch_info.end_sleep_ms,
+    //   millis(),
+    //   planner_sch_info.entry_cnt
+    //   );
+    // }
+  }
 
 }
 

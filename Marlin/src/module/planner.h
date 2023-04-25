@@ -86,6 +86,18 @@ typedef struct {
   uint16_t power_entry;      // Entry power for the laser
 } block_inline_laser_t;
 
+struct planner_schedule_info {
+  uint32_t entry_cnt;
+  uint32_t try_to_get_block_cnt;
+  uint32_t get_block_and_gen_move_cnt;
+  uint32_t have_gen_steps_cnt;
+  uint32_t sleep_ms;
+  uint32_t start_sleep_ms;
+  uint32_t end_sleep_ms;
+};
+
+
+
 /**
  * struct block_t
  *
@@ -333,8 +345,7 @@ class Planner {
 
     static bool has_motion_queue();
     static void shaped_loop();
-    // static bool genStep();
-    static uint32_t genStep();
+    static bool genStep();
 
   private:
 
@@ -573,6 +584,8 @@ class Planner {
 
     // Number of moves currently in the planner including the busy block, if any
     FORCE_INLINE static uint8_t movesplanned() { return BLOCK_MOD(block_buffer_head - block_buffer_tail); }
+
+    FORCE_INLINE static uint8_t optimally_planned_movesplanned() { return BLOCK_MOD(block_buffer_head - block_buffer_planned); }
 
     // Number of nonbusy moves currently in the planner
     FORCE_INLINE static uint8_t nonbusy_movesplanned() { return BLOCK_MOD(block_buffer_head - block_buffer_nonbusy); }
@@ -965,3 +978,4 @@ FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != bloc
 #define PLANNER_XY_FEEDRATE() (MIN(planner.settings.max_feedrate_mm_s[X_AXIS], planner.settings.max_feedrate_mm_s[Y_AXIS]))
 
 extern Planner planner;
+extern struct planner_schedule_info planner_sch_info;

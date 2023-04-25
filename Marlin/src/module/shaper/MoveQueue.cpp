@@ -2,7 +2,7 @@
 #include "AxisInputShaper.h"
 #include "../../../../snapmaker/src/common/debug.h"
 
-MoveQueue moveQueue;
+MoveQueue move_queue;
 uint32_t MoveQueue::ms2tick;
 
 static float ZERO_AXIS_R[NUM_AXIS] = {0.0, .0, .0, .0, .0};

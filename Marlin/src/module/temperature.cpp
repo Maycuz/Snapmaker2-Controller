@@ -31,6 +31,9 @@
 #include "planner.h"
 #include "../core/language.h"
 #include "../HAL/shared/Delay.h"
+#include "./shaper/AxisInputShaper.h"
+#include "./stepper.h"
+#include "../../../snapmaker/src/module/emergency_stop.h"
 
 #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
   #include "snapmaker.h"
@@ -3005,6 +3008,10 @@ void Temperature::isr() {
 
   // Periodically call the planner timer
   planner.tick();
+
+  if (quickstop.CheckInISR(&Stepper::pause_block) || emergency_stop.IsTriggered()) {
+    axis_mng.reqAbort = true;
+  }
 }
 
 #if ENABLED(BABYSTEPPING)

@@ -41,7 +41,7 @@
 #define HB_TASK_PRIO (3)
 #define HB_TASK_STACK_DEPTH 512
 
-#define PLANNER_TASK_PRIO (configMAX_PRIORITIES)
+#define PLANNER_TASK_PRIO (configMAX_PRIORITIES - 1)
 #define PLANNER_TASK_STACK_DEPTH (1024)
 
 // priority for UARTs

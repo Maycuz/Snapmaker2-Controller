@@ -19,6 +19,7 @@ public:
   // int start_pos, end_pos;
   // float coef_a, coef_b, coef_c;
   float coef_a, coef_b;
+  // float avg_itv;
 
 public:
   void log(uint32_t idx) {
@@ -33,6 +34,11 @@ public:
     float c = s;
 
     if (IS_ZERO(coef_a)) {
+      // if (!avg_itv && coef_b > 20.0 && time_wind > 100.0) {
+      // if (IS_ZERO(avg_itv)) {
+      //   avg_itv = 1.0 / coef_b;
+      //   LOG_I("-------------------------------------: %f %f avg_itv %f\n", coef_a, coef_b, avg_itv);
+      // }
       return (-c / coef_b);
     }
 

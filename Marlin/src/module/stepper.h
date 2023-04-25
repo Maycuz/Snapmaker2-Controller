@@ -267,6 +267,8 @@ class Stepper {
       static bool initialized;
     #endif
 
+    static bool abort_current_block;        // Signals to the stepper that current block should be aborted
+
   private:
 
     static block_t* current_block;          // A pointer to the block currently being traced
@@ -275,7 +277,6 @@ class Stepper {
     static uint8_t last_direction_bits,     // The next stepping-bits to be output
                    axis_did_move;           // Last Movement in the given direction is not null, as computed when the last movement was fetched from planner
 
-    static bool abort_current_block;        // Signals to the stepper that current block should be aborted
     #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       static bool abort_e_moves;
     #endif

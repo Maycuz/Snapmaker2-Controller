@@ -104,6 +104,8 @@
 
 Planner planner;
 
+struct planner_schedule_info planner_sch_info;
+
   // public:
 
 /**
@@ -1181,9 +1183,9 @@ bool Planner::has_motion_queue() {
 
   // First update move
   axis_mng.updateOldestPluesTick();
-  moveQueue.moveTailForward(axis_mng.oldest_plues_tick);
+  move_queue.moveTailForward(axis_mng.oldest_plues_tick);
 
-  if (moveQueue.haveMotion() || axis_mng.tgfValid() || steps_seq.count()) {
+  if (move_queue.haveMotion() || axis_mng.tgfValid() || steps_seq.count()) {
     return true;
   }
   else {
@@ -1191,39 +1193,83 @@ bool Planner::has_motion_queue() {
   }
 }
 
-uint32_t Planner::genStep() {
-  uint32_t have_gen = 0;
+bool Planner::genStep() {
+  bool have_gen = 0;
   StepInfo step_info;
   while (!steps_seq.isFull() && (!axis_mng.reqAbort)) {
     if (axis_mng.getNextStep(step_info)) {
       // LOG_I("PUSH STIF: axis:%d itv:%.3f(ms) dir:%d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
-      // steps_seq.pushQueue(step_info.time_dir);
-      have_gen++;
-      // if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
-      //   // if (E_AXIS == step_info.time_dir.axis) {
-      //   //   LOG_I("2) E file pos update to %u\n", step_info.flag_data.file_pos);
-      //   // }
-      //   if (!steps_flag.pushQueue(step_info.flag_data)) {
-      //     #ifdef SHAPER_LOG_ENABLE
-      //       break;
-      //     #else
-      //     LOG_E("### steps flag have no space\r\n");
-      //     while(1);
-      //     #endif
-      //   }
-      // }
+      steps_seq.pushQueue(step_info.time_dir);
+      have_gen = true;
+      if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
+        // if (E_AXIS == step_info.time_dir.axis) {
+        //   LOG_I("2) E file pos update to %u\n", step_info.flag_data.file_pos);
+        // }
+        if (!steps_flag.pushQueue(step_info.flag_data)) {
+          #ifdef SHAPER_LOG_ENABLE
+            break;
+          #else
+          LOG_E("### steps flag have no space\r\n");
+          while(1);
+          #endif
+        }
+      }
     }
     else {
       break;
     }
   }
+
+  // if (steps_seq.isFull()) {
+  //   LOG_I("F");
+  // }
+  // else {
+  //   uint32_t cnt = 0;
+  //   LOOP_SHAPER_AXES(i) {
+  //     if (axis_mng.axes[i].no_more_move) {
+  //       cnt |= 1<<i;
+  //     }
+  //   }
+  //   if (cnt) LOG_I("%01X ", cnt);
+  // }
+
   return have_gen;
 }
 
 void Planner::shaped_loop() {
 
-  static block_t *bt = nullptr;
-  uint8_t block_num = movesplanned();
+  bool has_gen_steps;
+  planner_sch_info.entry_cnt++;
+
+  if (genStep())
+    has_gen_steps = true;
+  #if 0
+  struct step_seq_statistics_info sssi;
+  sssi.sys_time_ms = millis();
+  sssi.use_rate = steps_seq.useRate();
+  sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
+  bool has_gen_steps = genStep();
+  if (has_gen_steps) {
+    axis_mng.step_seq_statistics_rb.push(sssi);
+    sssi.sys_time_ms = millis();
+    sssi.use_rate = steps_seq.useRate();
+    sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
+    axis_mng.step_seq_statistics_rb.push(sssi);
+  }
+  else if (step_generating) {
+    struct motion_info mi;
+    mi.sys_time_ms = millis();
+    mi.tag[0] = 'P'; mi.tag[1] = 'L'; mi.tag[2] = 'N'; mi.tag[3] = '\0';
+    mi.block_count = planner.movesplanned();
+    mi.move_count = move_queue.getMoveSize();
+    mi.step_count = steps_seq.count();
+    mi.step_prepare_time = steps_seq.getBufMilliseconds();
+    mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
+    mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
+    mi.step_use_rate = steps_seq.useRate();
+    axis_mng.motion_info_rb.push(mi);
+  }
+  #endif
 
   axis_mng.loop();
 
@@ -1234,79 +1280,73 @@ void Planner::shaped_loop() {
     axis_mng.reqAbort = false;
     step_generating = false;
 
-    LOG_I("Adding a empty move after abort\r\n");
-    moveQueue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
-    axis_mng.prepare(moveQueue.move_tail);
+    // LOG_I("Adding a empty move after abort\r\n");
+    move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
+    axis_mng.prepare(move_queue.move_tail);
   }
 
-  xSemaphoreTake(plan_buffer_lock, portMAX_DELAY);
-  if (!bt && block_num) {
-    // Have no more optimal block
-    if (block_buffer_nonbusy == block_buffer_planned) {
-      // Steps will runout in a few millisecond, just take this block. If 5 millisecond can product new steps?
-      if (steps_seq.getBufMilliseconds() < 20) {
+  static block_t *bt = nullptr;
+  uint8_t block_num = movesplanned();
+
+  // xSemaphoreTake(plan_buffer_lock, portMAX_DELAY);
+  //if (pdPASS == xSemaphoreTake(plan_buffer_lock, 0)) {
+  {
+    if (!bt && block_num) {
+      // Have no more optimal block
+      if (block_buffer_nonbusy == block_buffer_planned) {
+        // Steps will runout in a few millisecond, just take this block. If 5 millisecond can product new steps?
+        if (steps_seq.getBufMilliseconds() < 20) {
+          bt = get_current_block();
+        }
+      }
+      // Just take this block as this block has been optimaled.
+      else {
         bt = get_current_block();
       }
     }
-    // Just take this block as this block has been optimaled.
-    else {
-      bt = get_current_block();
+
+    if (bt) {
+      // Use the left tick of all axes's first plues's tick
+      axis_mng.updateOldestPluesTick();
+      move_queue.moveTailForward(axis_mng.oldest_plues_tick);
+      if (move_queue.genMoves(bt)) {
+        // release_current_block();
+        discard_current_block();
+        bt = nullptr;
+        step_generating = true;
+        // move_queue.log();
+        #ifdef SHAPER_LOG_ENABLE
+        move_queue.log();
+        #endif
+        // LOG_I(">");
+      }
     }
+    // xSemaphoreGive(plan_buffer_lock);
   }
 
-  if (bt) {
-    // Use the left tick of all axes's first plues's tick
-    axis_mng.updateOldestPluesTick();
-    moveQueue.moveTailForward(axis_mng.oldest_plues_tick);
-    if (moveQueue.genMoves(bt)) {
-      // release_current_block();
-      discard_current_block();
-      bt = nullptr;
-      step_generating = true;
-      // moveQueue.log();
-      #ifdef SHAPER_LOG_ENABLE
-      moveQueue.log();
-      #endif
-    }
-  }
-  xSemaphoreGive(plan_buffer_lock);
-
-  // 747_debug
-  // moveQueue.reset();
-  // vTaskDelay(pdMS_TO_TICKS(1));
-  // return;
-
-  // generat steps and push it to queue
-  // #ifdef DEBUG_IO
-  // WRITE(DEBUG_IO, 1);
-  // #endif
-  struct step_seq_statistics_info sssi;
-  sssi.sys_time_ms = millis();
-  sssi.use_rate = steps_seq.useRate();
-  sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
+  // struct step_seq_statistics_info sssi;
+  // sssi.sys_time_ms = millis();
+  // sssi.use_rate = steps_seq.useRate();
+  // sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
   // bool has_gen_steps = genStep();
-  uint32_t c = genStep();
-  bool has_gen_steps = c;
-  if (c) {
-    LOG_I(">>>>>>>>>>>>>>> Each step caculation take %.1f us\n", (millis() - sssi.sys_time_ms) * 1000.0 / c);
-    axis_mng.step_seq_statistics_rb.push(sssi);
-    sssi.sys_time_ms = millis();
-    sssi.use_rate = steps_seq.useRate();
-    sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
-    axis_mng.step_seq_statistics_rb.push(sssi);
-  }
-  // #ifdef DEBUG_IO
-  // WRITE(DEBUG_IO, 0);
-  // #endif
+  if (genStep())
+    has_gen_steps = true;
+  // if (has_gen_steps) {
+  //   axis_mng.step_seq_statistics_rb.push(sssi);
+  //   sssi.sys_time_ms = millis();
+  //   sssi.use_rate = steps_seq.useRate();
+  //   sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
+  //   axis_mng.step_seq_statistics_rb.push(sssi);
+  // }
 
-  // #ifdef SHAPER_LOG_ENABLE
+  #ifdef SHAPER_LOG_ENABLE
   StepInfo step_info;
   // LOG_I("NO STEP GEN\r\n");
   // Consumption
   while(steps_seq.popQueue(&step_info.time_dir)) {
-    if (step_info.time_dir.out_step) {
+    //if (step_info.time_dir.out_step) {
       // LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
-    }
+    //}
     if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
       struct StepFlagData flag_data;
       if(steps_flag.popQueue(&flag_data)) {
@@ -1317,28 +1357,40 @@ void Planner::shaped_loop() {
       }
     }
   }
-  // #endif
+  #endif
 
   // No block, no activeDM and steps will runout, add a empty move
   block_num = movesplanned();
   if (axis_mng.endisable &&
       step_generating &&
-      block_num == 0 &&
+      !block_num &&
       steps_seq.getBufMilliseconds() < 5) {
-    LOG_I("### No more motion, add a empty move for shaper finish\r\n");
-    moveQueue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
+    // LOG_I("### No more motion, add a empty move for shaper finish\r\n");
+    move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
     #ifdef SHAPER_LOG_ENABLE
-    moveQueue.log();
+    move_queue.log();
     #endif
     genStep();
     step_generating = false;
   }
 
-  if (has_gen_steps && block_num && block_buffer_nonbusy != block_buffer_planned) {
-    // continue;
-  }
-  else {
-
+  // if (has_gen_steps && block_num && block_buffer_nonbusy != block_buffer_planned) {
+  //   // continue;
+  //   // LOG_I("+");
+  //   struct motion_info mi;
+  //   mi.sys_time_ms = millis();
+  //   mi.tag[0] = 'P'; mi.tag[1] = 'L'; mi.tag[2] = 'N'; mi.tag[3] = '\0';
+  //   mi.block_count = planner.movesplanned();
+  //   mi.block_planned_count = planner.optimally_planned_movesplanned();
+  //   mi.move_count = move_queue.getMoveSize();
+  //   mi.step_count = steps_seq.count();
+  //   mi.step_prepare_time = steps_seq.getBufMilliseconds();
+  //   mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
+  //   mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
+  //   mi.step_use_rate = steps_seq.useRate();
+  //   axis_mng.motion_info_rb.push(mi);
+  // }
+  // else {
     if (step_generating) {
       uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
       if (prepare_time_ms > 10) {
@@ -1347,20 +1399,28 @@ void Planner::shaped_loop() {
       else {
         if (has_gen_steps && block_num) {
           // continue
-          LOG_I("+");
+          // LOG_I("+");
         }
         else {
           // Can not make any more steps just delay
           vTaskDelay(pdMS_TO_TICKS(1));
         }
       }
+      // LOG_I("%u\n", (uint32_t)steps_seq.getBufMilliseconds()/4);
+      // LOG_I("w");
+      // planner_sch_info.sleep_ms = (uint32_t) (steps_seq.getBufMilliseconds()/2);
+      // planner_sch_info.start_sleep_ms = millis();
+      // planner_sch_info.end_sleep_ms = planner_sch_info.start_sleep_ms + planner_sch_info.sleep_ms;
+      // vTaskDelay(pdMS_TO_TICKS(steps_seq.getBufMilliseconds()/4));
     }
     else {
+      // LOG_I(".");
+      // planner_sch_info.sleep_ms = 1;
+      // planner_sch_info.start_sleep_ms = millis();
+      // planner_sch_info.end_sleep_ms = planner_sch_info.start_sleep_ms + planner_sch_info.sleep_ms;
       vTaskDelay(pdMS_TO_TICKS(1));
     }
-
-  }
-
+  //}
 }
 
 

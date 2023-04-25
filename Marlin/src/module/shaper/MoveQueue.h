@@ -17,6 +17,7 @@ Distance: unint step
 Time: unit millisecond
 */
 class Move {
+
 public:
   uint32_t flag;
   int sync_target_pos[NUM_AXIS];
@@ -95,4 +96,4 @@ public:
   uint32_t file_pos;
 };
 
-extern MoveQueue moveQueue;
+extern MoveQueue move_queue;

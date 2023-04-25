@@ -1273,6 +1273,11 @@ void setup() {
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
   reset_bed_level_if_upgraded();
 
+  // 747 ADD
+  #ifdef DEBUG_IO
+  SET_OUTPUT(DEBUG_IO);
+  #endif
+
   SnapmakerSetupPost();
 }
 
