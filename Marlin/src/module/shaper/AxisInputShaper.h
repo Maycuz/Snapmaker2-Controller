@@ -467,7 +467,7 @@ private:
     tgf_1.coef_b = ds / dt - tgf_1.coef_a * dt;
     if (IS_ZERO(tgf_1.coef_a)) {
       if (IS_ZERO(tgf_1.coef_b)) {
-        LOG_E("#e# Remove a const tgf\r\n");
+        // LOG_E("#e# Remove a const tgf\r\n");
         return false;
       }
       tgf_1.monotone = tgf_1.coef_b > 0.0 ? 1 : -1;

@@ -3009,8 +3009,10 @@ void Temperature::isr() {
   // Periodically call the planner timer
   planner.tick();
 
-  if (quickstop.CheckInISR(&Stepper::pause_block) || emergency_stop.IsTriggered()) {
-    axis_mng.reqAbort = true;
+
+  quickstop.CheckInISR(&Stepper::pause_block);
+  if (emergency_stop.IsTriggered()) {
+    Stepper::quick_stop();
   }
 }
 

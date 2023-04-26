@@ -529,7 +529,7 @@ bool AxisMng::prepare(uint8_t m_idx) {
       max_shaper_window_right_delta_tick = sw;
   }
 
-  LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
+  // LOG_I("max_shaper_window_tick %d, max_shaper_window_right_delta_tick %d\r\n", max_shaper_window_tick, max_shaper_window_right_delta_tick);
   mq->update_shaper_param(max_shaper_window_tick, max_shaper_window_right_delta_tick);
 
   AxisInputShaper *dm = findNearestPrintTickAxis();
@@ -560,7 +560,7 @@ bool AxisMng::tgfValid() {
 }
 
 void AxisMng::abort() {
-  LOG_I("Axes mng aborted\r\n");
+  // LOG_I("Axes mng aborted\r\n");
   steps_seq.reset();
   steps_flag.reset();
   mq->reset();
@@ -606,7 +606,7 @@ bool AxisMng::req_endisable_shaper(bool endisable) {
     wait = 300;
     while(req_endisable_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
     if (req_endisable_shaper_flag) {
-      LOG_E("Can endisable shaper timeout\n");
+      LOG_E("Endisable shaper timeout\n");
       return false;
     }
     req_endisable_shaper_flag = false;

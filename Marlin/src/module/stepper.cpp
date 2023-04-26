@@ -1387,14 +1387,16 @@ __start:
   // checking power loss here because when no moves in block buffer, ISR will not
   // execute to endstop.update(), then we cannot check power loss there.
   // But if power loss happened and ISR cannot get block, no need to check again
-  // if (quickstop.CheckInISR(current_block) || emergency_stop.IsTriggered()) {
-  //   abort_current_block = false;
-  //   axis_did_move = 0;
-  //   sif_valid = false;
-  //   axis_mng.reqAbort = true;
-  //   // interval = 1 ms
-  //   HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
-  //   return;
+  // if (quickstop.CheckInISR(&pause_block) || emergency_stop.IsTriggered()) {
+  //   if (!quickstop.isTriggered()) {
+  //     abort_current_block = false;
+  //     axis_did_move = 0;
+  //     sif_valid = false;
+  //     axis_mng.reqAbort = true;
+  //     // interval = 1 ms
+  //     HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
+  //     return;
+  //   }
   // }
 
   #if 0
@@ -1425,11 +1427,6 @@ __start:
     HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
     return;
   }
-
-  // if (axis_mng.reqAbort) {
-  //   HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
-  //   return ;
-  // }
 
   int fall_edge_axis = -1;
   if (sif_valid) {
@@ -1611,26 +1608,17 @@ __start:
     HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
     if (last_got_step) {
       last_got_step = false;
-      struct motion_info mi;
-      mi.tag[0] = 'S'; mi.tag[1] = 'T'; mi.tag[2] = 'P'; mi.tag[3] = '\0';
-      mi.sys_time_ms = millis();
-      mi.block_count = planner.movesplanned();
-      mi.block_planned_count = planner.optimally_planned_movesplanned();
-      mi.move_count = move_queue.getMoveSize();
-      mi.step_count = steps_seq.count();
-      mi.step_prepare_time = steps_seq.getBufMilliseconds();
-      mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
-      mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
-      mi.step_use_rate = steps_seq.useRate();
-      axis_mng.motion_info_rb.push(mi);
-      // struct step_runout sri;
-      // sri.sys_time_ms = millis();
-      // step_runout_rb.push(sri);
-      // struct step_seq_statistics_info sssi;
-      // sssi.sys_time_ms = millis();
-      // sssi.use_rate = steps_seq.useRate();
-      // sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
-      // axis_mng.step_seq_statistics_rb.push(sssi);
+      // struct motion_info mi;
+      // mi.tag[0] = 'S'; mi.tag[1] = 'T'; mi.tag[2] = 'P'; mi.tag[3] = '\0';
+      // mi.sys_time_ms = millis();
+      // mi.block_count = planner.movesplanned();
+      // mi.block_planned_count = planner.optimally_planned_movesplanned();
+      // mi.move_count = move_queue.getMoveSize();
+      // mi.step_count = steps_seq.count();
+      // mi.step_prepare_time = steps_seq.getBufMilliseconds();
+      // mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
+      // mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
+      // mi.step_use_rate = steps_seq.useRate();
     }
     // #ifdef DEBUG_IO
     // WRITE(DEBUG_IO, 0);

@@ -76,11 +76,12 @@ struct SnapDebugInfo {
   uint32_t  screen_cmd_checksum_err;  // chceksum error for command from screen
   uint32_t  pc_cmd_checksum_err;      // chceksum error for command from screen
 
-  uint32_t last_line_num_of_sc_gcode; // line number of last gcode acked to screen
+  uint32_t last_line_num_of_sc_gcode; // line number of last gcode ac to screen
 };
 
 class SnapDebug {
   public:
+    void Init(void);
     void Log(SnapDebugLevel level, const char *fmt, ...);
 
     void ShowInfo();

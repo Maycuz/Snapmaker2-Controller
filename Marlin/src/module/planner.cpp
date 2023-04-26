@@ -1181,9 +1181,11 @@ void Planner::recalculate() {
 
 bool Planner::has_motion_queue() {
 
-  // First update move
-  axis_mng.updateOldestPluesTick();
-  move_queue.moveTailForward(axis_mng.oldest_plues_tick);
+  if (xTaskGetCurrentTaskHandle() == sm2_handle->planner) {
+    // First update move
+    axis_mng.updateOldestPluesTick();
+    move_queue.moveTailForward(axis_mng.oldest_plues_tick);
+  }
 
   if (move_queue.haveMotion() || axis_mng.tgfValid() || steps_seq.count()) {
     return true;
@@ -1241,6 +1243,10 @@ void Planner::shaped_loop() {
   bool has_gen_steps;
   planner_sch_info.entry_cnt++;
 
+  // Use the left tick of all axes's first plues's tick
+  axis_mng.updateOldestPluesTick();
+  move_queue.moveTailForward(axis_mng.oldest_plues_tick);
+
   if (genStep())
     has_gen_steps = true;
   #if 0
@@ -1279,7 +1285,6 @@ void Planner::shaped_loop() {
     axis_mng.abort();
     axis_mng.reqAbort = false;
     step_generating = false;
-
     // LOG_I("Adding a empty move after abort\r\n");
     move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
     axis_mng.prepare(move_queue.move_tail);
@@ -1306,9 +1311,6 @@ void Planner::shaped_loop() {
     }
 
     if (bt) {
-      // Use the left tick of all axes's first plues's tick
-      axis_mng.updateOldestPluesTick();
-      move_queue.moveTailForward(axis_mng.oldest_plues_tick);
       if (move_queue.genMoves(bt)) {
         // release_current_block();
         discard_current_block();
@@ -1364,7 +1366,8 @@ void Planner::shaped_loop() {
   if (axis_mng.endisable &&
       step_generating &&
       !block_num &&
-      steps_seq.getBufMilliseconds() < 5) {
+      steps_seq.getBufMilliseconds() < 5 &&
+      move_queue.getFreeMoveSize()) {
     // LOG_I("### No more motion, add a empty move for shaper finish\r\n");
     move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
     #ifdef SHAPER_LOG_ENABLE

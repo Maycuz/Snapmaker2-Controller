@@ -105,6 +105,16 @@ bool QuickStopService::CheckInISR(block_t *blk) {
    * triggered by some one
    */
   case QS_STA_TRIGGERED:
+    axis_mng.reqAbort = true;
+    state_ = QS_STA_WAIT_STOP;
+    break;
+
+  case QS_STA_WAIT_STOP:
+    if (!axis_mng.reqAbort)
+      state_ = QS_STA_EARLY_SAVE;
+    break;
+
+  case QS_STA_EARLY_SAVE:
     // need sync count position from stepper to planner
     // otherwise, it may park in unexpected position
     current_position[E_AXIS] = planner.get_axis_position_mm(E_AXIS);
