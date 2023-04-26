@@ -1367,7 +1367,7 @@ void Planner::shaped_loop() {
       step_generating &&
       !block_num &&
       steps_seq.getBufMilliseconds() < 5 &&
-      move_queue.getFreeMoveSize()) {
+      move_queue.getFreeMoveSize() > 1) {
     // LOG_I("### No more motion, add a empty move for shaper finish\r\n");
     move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
     #ifdef SHAPER_LOG_ENABLE

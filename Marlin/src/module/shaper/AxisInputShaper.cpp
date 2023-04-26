@@ -572,12 +572,14 @@ void AxisMng::abort() {
 void AxisMng::updateOldestPluesTick() {
   if (!is_init)
     return;
-  uint32_t shaper_window_tick = axes[0].shaper_window.tick;
-  uint32_t left_plues_tick = shaper_window_tick + LROUND((-axes[0].left_delta * ms2tick));
+  // uint32_t shaper_window_tick = axes[0].shaper_window.tick;
+  // uint32_t left_plues_tick = shaper_window_tick + LROUND((-axes[0].left_delta * ms2tick));
+  uint32_t left_plues_tick = axes[0].print_tick + LROUND((-axes[0].left_delta * ms2tick));
   uint32_t opt = left_plues_tick;
   LOOP_SHAPER_AXES(i) {
-    shaper_window_tick = axes[i].shaper_window.tick;
-    left_plues_tick = shaper_window_tick + LROUND((-axes[i].left_delta * ms2tick));
+    // shaper_window_tick = axes[i].shaper_window.tick;
+    // left_plues_tick = shaper_window_tick + LROUND((-axes[i].left_delta * ms2tick));
+    left_plues_tick = axes[i].print_tick + LROUND((-axes[i].left_delta * ms2tick));
     if (PENDING(left_plues_tick, opt)) {
       opt = left_plues_tick;
     }
