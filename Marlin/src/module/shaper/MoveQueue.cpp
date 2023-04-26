@@ -5,7 +5,7 @@
 MoveQueue move_queue;
 uint32_t MoveQueue::ms2tick;
 
-static float ZERO_AXIS_R[NUM_AXIS] = {0.0, .0, .0, .0, .0};
+static float ZERO_AXIS_R[NUM_AXIS] = {.0, .0, .0, .0, .0};
 
 MoveQueue::MoveQueue() {
   move_tail = move_head = 0;
@@ -187,7 +187,7 @@ Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float dis
   move.start_tick = moves_head_tick;
   move.end_tick = move.start_tick + t;
   moves_head_tick = move.end_tick;
-  can_print_head_tick = moves_head_tick - max_shape_window_right_delta_tick;
+  can_print_head_tick = moves_head_tick - max_shape_window_right_delta_tick ;
 
   for (int i = 0; i < NUM_AXIS; ++i) {
     move.start_pos[i] = last_mq_pos[i];
@@ -201,6 +201,7 @@ Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float dis
 }
 
 void MoveQueue::addEmptyMove(uint32_t time) {
+  LOG_I("Empty move time tick %u\n", time);
   addMove(0, 0, 0, 0, ZERO_AXIS_R, time);
 }
 

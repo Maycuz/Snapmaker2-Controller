@@ -590,6 +590,8 @@ void AxisMng::updateOldestPluesTick() {
 bool AxisMng::req_endisable_shaper(bool endisable) {
   uint32_t wait;
 
+  planner.synchronize();
+
   wait = 100;
   while(req_endisable_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
   if (req_endisable_shaper_flag) {
@@ -619,6 +621,8 @@ bool AxisMng::req_endisable_shaper(bool endisable) {
 bool AxisMng::req_update_shaper(void) {
   uint32_t wait;
 
+  planner.synchronize();
+
   wait = 100;
   while(req_update_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
   if (req_update_shaper_flag) {
@@ -636,7 +640,7 @@ bool AxisMng::req_update_shaper(void) {
     wait = 300;
     while(req_update_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
     if (req_update_shaper_flag) {
-      LOG_E("Can reset shaper timeout\n");
+      LOG_E("Update shaper timeout\n");
       return false;
     }
     req_update_shaper_flag = false;
@@ -646,6 +650,8 @@ bool AxisMng::req_update_shaper(void) {
 
 bool AxisMng::req_reset_shaper(void) {
   uint32_t wait;
+
+  planner.synchronize();
 
   wait = 100;
   while(req_reset_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
@@ -664,7 +670,7 @@ bool AxisMng::req_reset_shaper(void) {
     wait = 300;
     while(req_reset_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
     if (req_reset_shaper_flag) {
-      LOG_E("Can reset shaper timeout\n");
+      LOG_E("Reset shaper timeout\n");
       return false;
     }
     req_reset_shaper_flag = false;

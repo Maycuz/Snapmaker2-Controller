@@ -1200,18 +1200,15 @@ bool Planner::genStep() {
   StepInfo step_info;
   while (!steps_seq.isFull() && (!axis_mng.reqAbort)) {
     if (axis_mng.getNextStep(step_info)) {
-      // LOG_I("PUSH STIF: axis:%d itv:%.3f(ms) dir:%d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
+      // LOG_I("PUSH STIF: axis:%u itv:%.3f(ms) dir:%d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
       steps_seq.pushQueue(step_info.time_dir);
       have_gen = true;
       if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
-        // if (E_AXIS == step_info.time_dir.axis) {
-        //   LOG_I("2) E file pos update to %u\n", step_info.flag_data.file_pos);
-        // }
         if (!steps_flag.pushQueue(step_info.flag_data)) {
           #ifdef SHAPER_LOG_ENABLE
             break;
           #else
-          LOG_E("### steps flag have no space\r\n");
+          LOG_E("### ERROR ###: steps flag have no space\r\n");
           while(1);
           #endif
         }
@@ -1285,8 +1282,8 @@ void Planner::shaped_loop() {
     axis_mng.abort();
     axis_mng.reqAbort = false;
     step_generating = false;
-    // LOG_I("Adding a empty move after abort\r\n");
-    move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
+    LOG_I("Adding a empty move after abort\r\n");
+    move_queue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
     axis_mng.prepare(move_queue.move_tail);
   }
 
@@ -1362,21 +1359,22 @@ void Planner::shaped_loop() {
   #endif
 
   // No block, no activeDM and steps will runout, add a empty move
-  block_num = movesplanned();
-  if (axis_mng.endisable &&
-      step_generating &&
-      !block_num &&
+
+  if (step_generating &&
       steps_seq.getBufMilliseconds() < 5 &&
       move_queue.getFreeMoveSize() > 1) {
-    // LOG_I("### No more motion, add a empty move for shaper finish\r\n");
-    move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
+    LOG_I("### No more motion, add a empty move for shaper finish\r\n");
+    if (axis_mng.max_shaper_window_tick)
+      move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
+    else
+      move_queue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
     #ifdef SHAPER_LOG_ENABLE
     move_queue.log();
     #endif
-    genStep();
     step_generating = false;
   }
 
+  block_num = movesplanned();
   // if (has_gen_steps && block_num && block_buffer_nonbusy != block_buffer_planned) {
   //   // continue;
   //   // LOG_I("+");
@@ -3244,8 +3242,9 @@ void Planner::set_e_position_mm(const float &e) {
   #if IS_KINEMATIC
     position_cart[E_AXIS] = e;
   #endif
-  if (has_blocks_queued())
+  if (has_blocks_queued()) {
     buffer_sync_block();
+  }
   else
     stepper.set_position(E_AXIS, position[E_AXIS]);
 }

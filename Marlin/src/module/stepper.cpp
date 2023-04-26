@@ -1430,22 +1430,20 @@ __start:
 
   int fall_edge_axis = -1;
   if (sif_valid) {
-    // Set direction
-    if (step_time_dir.dir) {
-      CBI(current_direction_bits, step_time_dir.axis);
-    }
-    else {
-      SBI(current_direction_bits, step_time_dir.axis);
-    }
-    if (current_direction_bits != last_direction_bits) {
-      last_direction_bits = current_direction_bits;
-      set_directions();
-    }
-    axis_did_move = step_time_dir.move_bits;
+    if (step_time_dir.out_step) {
+      // Set direction and move bit
+      axis_did_move = step_time_dir.move_bits;
+      if (step_time_dir.dir) {
+        CBI(current_direction_bits, step_time_dir.axis);
+      }
+      else {
+        SBI(current_direction_bits, step_time_dir.axis);
+      }
+      if (current_direction_bits != last_direction_bits) {
+        last_direction_bits = current_direction_bits;
+        set_directions();
+      }
 
-    // Out put plus
-    // if (step_time_dir.out_step) {
-    {
       fall_edge_axis = step_time_dir.axis;
       if (X_AXIS == step_time_dir.axis) {
         PULSE_START(X);
@@ -1497,43 +1495,6 @@ __start:
       }
     }
   }
-
-  // Last ISR sif_valid false, measn no step output
-  // Start getting the first step. If planner has prepare 100ms step, just starting pluse output
-  // Or wait for at leat 100ms, start output now.
-  // if (sif_valid) {
-  //   if(steps_seq.popQueue(&step_time_dir)) {
-  //     sif_valid = true;
-  //   }
-  //   else  {
-  //     sif_valid = false;
-  //     // wait for 100ms seconds
-  //     wait_sif_countdown = 100;
-  //   }
-  // }
-  // else {
-  //   if (steps_seq.getBufMilliseconds() > 100) {
-  //     if(steps_seq.popQueue(&step_time_dir)) {
-  //       sif_valid = true;
-  //     }
-  //     else {
-  //       sif_valid = false;
-  //     }
-  //   }
-  //   else {
-  //     if (wait_sif_countdown) wait_sif_countdown--;
-  //     if (0 == wait_sif_countdown) {
-  //       if(steps_seq.popQueue(&step_time_dir)) {
-  //         sif_valid = true;
-  //       }
-  //       else {
-  //         sif_valid = false;
-  //         // Re wait for 100ms seconds
-  //         wait_sif_countdown = 100;
-  //       }
-  //     }
-  //   }
-  // }
 
   if (sif_valid) {
     last_got_step = true;

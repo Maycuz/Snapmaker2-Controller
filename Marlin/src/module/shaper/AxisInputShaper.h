@@ -19,7 +19,7 @@
 #define LOOP_SHAPER_AXES(VAR)         LOOP_S_L_N(VAR, 0, NUM_AXIS)
 #define INVALID_FILE_POS              (0xFFFFFFFF)
 #define INVALID_SYNC_POS              (0x7FFFFFFF)
-#define EMPTY_MOVE_TIME_TICK          (500 * STEPPER_TIMER_TICKS_PER_MS)
+#define EMPTY_MOVE_TIME_TICK          (200 * STEPPER_TIMER_TICKS_PER_MS)
 
 #define SP_DEFT_TYPE                  (InputShaperType::ei)
 #define SP_DEFT_FREQ                  (50)
@@ -72,7 +72,7 @@ public:
   CalcPluseInfo pluse[5];     // Calculate plues's information
 
 public:
-  void reset() {pos = lpos = 0; tick = ltick = 0; }
+  void reset() { pos = lpos = 0; tick = ltick = 0; }
   void log(int Axis, uint32_t ms2tick) {
     LOG_I("\r\n===== AXIS %D shaper window =====\r\n", Axis);
     LOG_I("pls_cnt: %d\r\n", pls_cnt);
@@ -395,12 +395,7 @@ private:
           // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
           #endif
           if (!no_more_move) {
-            // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
-            // struct move_queue_statistics_info mqsi;
-            // mqsi.sys_time_ms = millis();
-            // mqsi.m_head = mq->move_head;
-            // mqsi.m_tail = mq->move_tail;
-            // mqsi.m_count = mq->getMoveSize();
+            // LOG_I("Axis %u have no move, pluse move index %u, move head %u, move tail %u\n", axis, cls_p.m_idx, mq->move_head, mq->move_tail);
             no_more_move = true;
           }
           return false;
@@ -418,11 +413,16 @@ private:
         #ifdef SHAPER_LOG_ENABLE
         // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
         #endif
+        if (!no_more_move) {
+          // LOG_I("Axis %u have no move, pluse move index %u, move head %u, move tail %u\n", axis, cls_p.m_idx, mq->move_head, mq->move_tail);
+          no_more_move = true;
+        }
         return false;
       }
       // Push the sync's target position
       if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
         sync_pos = mq->moves[cls_p_m_idx].sync_target_pos[axis];
+        print_tick = mq->moves[cls_p_m_idx].end_tick;
       }
     }
 
@@ -439,7 +439,6 @@ private:
   }
   bool generateShapedFuncParams() {
     tgf_1.flag = tgf_2.flag = 0;
-    // tgf_1.avg_itv = tgf_2.avg_itv = 0.0;
     tgf_1.coef_a = tgf_coef_a_sum;
 
     // A sync
@@ -636,33 +635,41 @@ public:
     AxisInputShaper *dm = findNearestPrintTickAxis();
     if (dm) {
       if (PENDING(dm->print_tick, cur_print_tick)) {
-        LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->print_tick));
+        LOG_E("### ERROR ####: cur print tick(%d) < last print tick %d\r\n", dm->axis, (cur_print_tick - dm->print_tick));
         dm->print_tick = cur_print_tick;
       }
-      if (!dm->have_gen_step_tick) {
-        LOG_E("### ERROR ####: got a in-have gen step tick\r\n");
-      }
-      // step time
-      step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
-      step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
-      step_info.time_dir.move_bits = 1<<dm->axis;
+
+      // Set from dm
       step_info.time_dir.axis = dm->axis;
-      // step flag data, sync and block position
-      step_info.time_dir.sync = 0;
+
+      // G92 sync block, do NOT update the cur_print_tick
       if (INVALID_SYNC_POS != dm->sync_pos) {
+        step_info.time_dir.out_step = 0;
         step_info.time_dir.sync = 1;
-        // LOG_I("Axis %d sync in gen next step\n", dm->axis);
+        step_info.time_dir.itv = 0;
         step_info.flag_data.sync_pos = dm->sync_pos;
-        dm->sync_pos = INVALID_SYNC_POS;
       }
+      // A normal step output, update cur_print_tick;
+      else {
+        step_info.time_dir.out_step = 1;
+        step_info.time_dir.sync = 0;
+        step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
+        step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
+        step_info.time_dir.move_bits = 1<<dm->axis;
+        cur_print_tick = dm->print_tick;
+      }
+
+      // FILE POSITION
       step_info.time_dir.update_file_pos = 0;
       if (E_AXIS == dm->axis && INVALID_FILE_POS != dm->file_pos) {
         step_info.time_dir.update_file_pos = 1;
         step_info.flag_data.file_pos = dm->file_pos;
-        dm->file_pos = INVALID_FILE_POS;
       }
-      cur_print_tick = dm->print_tick;
+
+      // Clear dm's data
       dm->have_gen_step_tick = false;
+      dm->sync_pos = INVALID_SYNC_POS;
+      dm->file_pos = INVALID_FILE_POS;
       return true;
     }
     else {
@@ -728,7 +735,7 @@ public:
     }
 
     if (nearest_axis && ELAPSED(nearest_axis->print_tick, mq->can_print_head_tick)) {
-      // LOG_I("ActiveDM(%d)'s tick must wait for move's gen step tick\r\n", nearest_axis->axis);
+      // LOG_I("Axis %d tick must wait for move's gen step tick\r\n", nearest_axis->axis, nearest_axis->axis);
       nearest_axis = nullptr;
     }
 

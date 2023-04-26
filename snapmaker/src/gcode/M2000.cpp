@@ -21,6 +21,7 @@
 
 #include "../common/debug.h"
 #include "../common/config.h"
+#include "../../../Marlin/src/module/shaper/MoveQueue.h"
 
 #include "../service/system.h"
 #include "../service/bed_level.h"
@@ -94,6 +95,24 @@ void GcodeSuite::M2000() {
       return;
     }
     systemservice.ClearExceptionByFaultFlag(1<<(l-1));
+    break;
+
+  case 100:
+  //   mi.sys_time_ms = millis();
+  //   mi.tag[0] = 'P'; mi.tag[1] = 'L'; mi.tag[2] = 'N'; mi.tag[3] = '\0';
+  //   mi.block_count = planner.movesplanned();
+  //   mi.block_planned_count = planner.optimally_planned_movesplanned();
+  //   mi.move_count = move_queue.getMoveSize();
+  //   mi.step_count = steps_seq.count();
+  //   mi.step_prepare_time = steps_seq.getBufMilliseconds();
+  //   mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
+  //   mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
+  //   mi.step_use_rate = steps_seq.useRate();
+  //   axis_mng.motion_info_rb.push(mi);
+    LOG_I("\n\n========== motion info ==========\n");
+    LOG_I("block: head %u, tail %u, size %u\n", planner.block_buffer_head, planner.block_buffer_tail, planner.movesplanned());
+    LOG_I("move: head %u tail %u, size %u", move_queue.move_head, move_queue.move_tail, move_queue.getMoveSize());
+    LOG_I("head tick %u, tail tick %u\n", move_queue.moves_head_tick, move_queue.moves_tail_tick);
     break;
   }
 
