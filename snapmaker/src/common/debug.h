@@ -96,7 +96,7 @@ class SnapDebug {
     ErrCode SetLogLevel(SSTP_Event_t &event);
 
   private:
-    void SendLog2Screen(SnapDebugLevel l);
+    void SendLog2Screen(SnapDebugLevel l, char *log);
 
     struct SnapDebugInfo info;
 };

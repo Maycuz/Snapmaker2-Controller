@@ -83,7 +83,7 @@ const static char *excoption_str[32] {
 
 static SnapDebugLevel pc_msg_level = SNAP_DEBUG_LEVEL_INFO;
 static SnapDebugLevel sc_msg_level = SNAP_DEBUG_LEVEL_INFO;
-static char log_buf[SNAP_LOG_BUFFER_SIZE + 2];
+// static char log_buf[SNAP_LOG_BUFFER_SIZE + 2];
 
 const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
   SNAP_TRACE_STR,
@@ -94,16 +94,18 @@ const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
 };
 
 
-void SnapDebug::SendLog2Screen(SnapDebugLevel l) {
+void SnapDebug::SendLog2Screen(SnapDebugLevel l, char *log) {
   SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_TRANS_LOG};
+  char log_buf[SNAP_LOG_BUFFER_SIZE + 2];
 
+  strncpy(log_buf + 2, log, SNAP_LOG_BUFFER_SIZE);
   int size = strlen(log_buf+2);
 
   if (size == 0)
     return;
   else if (size >= 255) {
     size = 255;
-    log_buf[255 + 2] = '\0';
+    log_buf[255 + 2] = 0;
   }
 
   // to include the end '\0'
@@ -130,25 +132,24 @@ void SnapDebug::Init(void) {
 //    ... - args
 void SnapDebug::Log(SnapDebugLevel level, const char *fmt, ...) {
   va_list args;
+  char log_buf[SNAP_LOG_BUFFER_SIZE + 2];
 
   if (level < pc_msg_level && level < sc_msg_level)
     return;
 
+  // if (taskSCHEDULER_RUNNING == xTaskGetSchedulerState()) xSemaphoreTake(debug_lock, portMAX_DELAY);
   va_start(args, fmt);
-
   vsnprintf(log_buf + 2, SNAP_LOG_BUFFER_SIZE, fmt, args);
-
   va_end(args);
+  log_buf[SNAP_LOG_BUFFER_SIZE + 2 - 1] = '\0';
 
   if (level >= pc_msg_level) {
-    if (taskSCHEDULER_RUNNING == xTaskGetSchedulerState()) xSemaphoreTake(debug_lock, portMAX_DELAY);
     CONSOLE_OUTPUT(log_buf + 2);
-    if (taskSCHEDULER_RUNNING == xTaskGetSchedulerState()) xSemaphoreGive(debug_lock);
   }
-
+  // if (taskSCHEDULER_RUNNING == xTaskGetSchedulerState()) xSemaphoreGive(debug_lock);
 
   if (level >= sc_msg_level)
-    SendLog2Screen(level);
+    SendLog2Screen(level, log_buf);
 }
 
 
