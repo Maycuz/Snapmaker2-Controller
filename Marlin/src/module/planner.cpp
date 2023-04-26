@@ -1364,10 +1364,10 @@ void Planner::shaped_loop() {
       steps_seq.getBufMilliseconds() < 5 &&
       move_queue.getFreeMoveSize() > 1) {
     LOG_I("### No more motion, add a empty move for shaper finish\r\n");
-    if (axis_mng.max_shaper_window_tick)
-      move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
-    else
-      move_queue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
+    // if (axis_mng.max_shaper_window_tick)
+    //   move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
+    // else
+    move_queue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
     #ifdef SHAPER_LOG_ENABLE
     move_queue.log();
     #endif
@@ -3242,7 +3242,7 @@ void Planner::set_e_position_mm(const float &e) {
   #if IS_KINEMATIC
     position_cart[E_AXIS] = e;
   #endif
-  if (has_blocks_queued()) {
+  if (has_blocks_queued() || has_motion_queue()) {
     buffer_sync_block();
   }
   else

@@ -96,7 +96,7 @@ void SnapDebug::SendLog2Screen(SnapDebugLevel l, char *log) {
   SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_TRANS_LOG};
   char log_buf[SNAP_LOG_BUFFER_SIZE + 2];
 
-  strncpy(log_buf + 2, log, SNAP_LOG_BUFFER_SIZE);
+  strncpy(log_buf + 2, log + 2, SNAP_LOG_BUFFER_SIZE);
   int size = strlen(log_buf+2);
 
   if (size == 0)
@@ -132,9 +132,13 @@ void SnapDebug::Log(SnapDebugLevel level, const char *fmt, ...) {
     return;
 
   va_start(args, fmt);
-  vsnprintf(log_buf + 2, SNAP_LOG_BUFFER_SIZE, fmt, args);
+  int wn = vsnprintf(log_buf + 2, SNAP_LOG_BUFFER_SIZE, fmt, args);
   va_end(args);
-  log_buf[SNAP_LOG_BUFFER_SIZE + 2 - 1] = '\0';
+
+  if (wn < 0)
+    return;
+
+  log_buf[wn+2] = '\0';
 
   if (level >= pc_msg_level) {
     CONSOLE_OUTPUT(log_buf + 2);

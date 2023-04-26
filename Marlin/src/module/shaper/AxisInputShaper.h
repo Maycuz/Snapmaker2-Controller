@@ -176,42 +176,43 @@ public:
       return true;
     }
     if (tgf_1.flag) {
-        if (getTimeFromTgf(tgf_1)){
-          return true;
-        }
-        else {
-          tgf_1.flag = 0;
-          return genNextStep();
-        }
-      }
-      else if(tgf_2.flag) {
-        if (getTimeFromTgf(tgf_2)){
-          return true;
-        }
-        else {
-          tgf_2.flag = 0;
-          return genNextStep();
-        }
+      if (getTimeFromTgf(tgf_1)){
+        return true;
       }
       else {
-        for (;;) {
-          if (moveShaperWindowToNext()) {
-            calcShaperWindowEndPosAndTime();
-            if (generateShapedFuncParams()) {
-              return genNextStep();
-            }
-            else {
-              // current print tick and positoin must update to shapper window
-              print_tick = shaper_window.tick;
-              print_pos = shaper_window.pos;
-            }
+        tgf_1.flag = 0;
+        return genNextStep();
+      }
+    }
+    else if(tgf_2.flag) {
+      if (getTimeFromTgf(tgf_2)){
+        return true;
+      }
+      else {
+        tgf_2.flag = 0;
+        return genNextStep();
+      }
+    }
+    else {
+      for (;;) {
+        if (moveShaperWindowToNext()) {
+          calcShaperWindowEndPosAndTime();
+          if (generateShapedFuncParams()) {
+            return genNextStep();
           }
           else {
-            return false;
+            // current print tick and positoin must update to shapper window
+            print_tick = shaper_window.tick;
+            print_pos = shaper_window.pos;
           }
         }
+        else {
+          print_tick = shaper_window.tick;
+          print_pos = shaper_window.pos;
+          return false;
+        }
       }
-
+    }
   }
   #if 0
   bool genNextStep(struct genStep &gs) {
@@ -387,7 +388,7 @@ private:
     CalcPluseInfo &cls_p = shaper_window.pluse[shaper_window.t_cls_pls];
     uint8_t cls_p_m_idx = mq->nextMoveIndex(cls_p.m_idx);
 
-    sync_pos = INVALID_SYNC_POS;
+    // sync_pos = INVALID_SYNC_POS;
     if (InputShaperType::none != type) {
       // Shaper axis do NOT support sync in moving as position is not in the correction. Skip the sync move
       do {
@@ -421,10 +422,9 @@ private:
         return false;
       }
       // Push the sync's target position
-      if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
+      if (axis == E_AXIS && mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
         sync_pos = mq->moves[cls_p_m_idx].sync_target_pos[axis];
         sync_tick = mq->moves[cls_p_m_idx].end_tick;
-        LOG_I("Axis %u sync\n", axis);
       }
     }
 
@@ -444,9 +444,7 @@ private:
     tgf_1.coef_a = tgf_coef_a_sum;
 
     // A sync
-    // if (0 == shaper_window.wind_tick && InputShaperType::none == type) {
     if (INVALID_SYNC_POS != sync_pos) {
-      // LOG_I("Axis %d sync in gen shape fun param\n", axis);
       tgf_1.flag |= TimeGenFunc::TGF_SYNC_FLAG;
       return true;
     }
@@ -468,7 +466,7 @@ private:
     tgf_1.coef_b = ds / dt - tgf_1.coef_a * dt;
     if (IS_ZERO(tgf_1.coef_a)) {
       if (IS_ZERO(tgf_1.coef_b)) {
-        // LOG_E("#e# Remove a const tgf\r\n");
+        LOG_E("#e# Remove a const tgf\r\n");
         return false;
       }
       tgf_1.monotone = tgf_1.coef_b > 0.0 ? 1 : -1;
@@ -546,11 +544,8 @@ private:
 
     if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
       tgf.flag = 0;
-      // print_tick = mq->moves[cls_p_m_idx].end_tick;
-      // print_tick = sync_tick;
       print_tick = sync_tick;
       have_gen_step_tick = true;
-      LOG_I("Axis %u print tick update to %u for sync tick\n", print_tick);
       return true;
     }
 
@@ -559,7 +554,6 @@ private:
       np = print_pos - mm_per_step;
       ns = print_pos - mm_per_half_step;
       // if (ns < tgf.end_pos - EPSILON) {
-      // if (np < tgf.end_pos - EPSILON) {
       if (ns < tgf.end_pos) {
         #ifdef SHAPER_LOG_ENABLE
         LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
@@ -572,7 +566,6 @@ private:
       np = print_pos + mm_per_step;
       ns = print_pos + mm_per_half_step;
       // if (ns > tgf.end_pos + EPSILON) {
-      // if (np > tgf.end_pos + EPSILON) {
       if (ns > tgf.end_pos) {
         #ifdef SHAPER_LOG_ENABLE
         LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
@@ -662,7 +655,6 @@ public:
         step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
         step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
         step_info.time_dir.move_bits = 1<<dm->axis;
-        cur_print_tick = dm->print_tick;
       }
 
       // FILE POSITION
@@ -671,6 +663,9 @@ public:
         step_info.time_dir.update_file_pos = 1;
         step_info.flag_data.file_pos = dm->file_pos;
       }
+
+      // update cur tick
+      cur_print_tick = dm->print_tick;
 
       // Clear dm's data
       dm->have_gen_step_tick = false;
