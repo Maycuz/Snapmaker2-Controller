@@ -289,6 +289,9 @@ void ack_gcode_event(uint8_t event_id, uint32_t line) {
 
 void check_and_request_gcode_again() {
   if (gcode_request_status == GCODE_REQ_WAITING) {
+    if (PENDING(millis(), gcode_pack_req_timeout + 1000)) {
+      return;
+    }
     // 747 mark error
     if ((gcode_pack_req_timeout + 1000) > millis()) {
       return;
