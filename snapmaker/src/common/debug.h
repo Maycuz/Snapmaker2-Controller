@@ -81,7 +81,6 @@ struct SnapDebugInfo {
 
 class SnapDebug {
   public:
-    void Init(void);
     void Log(SnapDebugLevel level, const char *fmt, ...);
 
     void ShowInfo();

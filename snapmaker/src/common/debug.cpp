@@ -32,7 +32,6 @@
 
 #if (SNAP_DEBUG == 1)
 
-SemaphoreHandle_t debug_lock;
 SnapDebug debug;
 
 const static char *excoption_str[32] {
@@ -83,7 +82,6 @@ const static char *excoption_str[32] {
 
 static SnapDebugLevel pc_msg_level = SNAP_DEBUG_LEVEL_INFO;
 static SnapDebugLevel sc_msg_level = SNAP_DEBUG_LEVEL_INFO;
-// static char log_buf[SNAP_LOG_BUFFER_SIZE + 2];
 
 const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
   SNAP_TRACE_STR,
@@ -120,10 +118,6 @@ void SnapDebug::SendLog2Screen(SnapDebugLevel l, char *log) {
   hmi.Send(event);
 }
 
-void SnapDebug::Init(void) {
-  debug_lock = xSemaphoreCreateMutex();
-}
-
 // output debug message, will not output message whose level
 // is less than msg_level
 // param:
@@ -137,7 +131,6 @@ void SnapDebug::Log(SnapDebugLevel level, const char *fmt, ...) {
   if (level < pc_msg_level && level < sc_msg_level)
     return;
 
-  // if (taskSCHEDULER_RUNNING == xTaskGetSchedulerState()) xSemaphoreTake(debug_lock, portMAX_DELAY);
   va_start(args, fmt);
   vsnprintf(log_buf + 2, SNAP_LOG_BUFFER_SIZE, fmt, args);
   va_end(args);
@@ -146,7 +139,6 @@ void SnapDebug::Log(SnapDebugLevel level, const char *fmt, ...) {
   if (level >= pc_msg_level) {
     CONSOLE_OUTPUT(log_buf + 2);
   }
-  // if (taskSCHEDULER_RUNNING == xTaskGetSchedulerState()) xSemaphoreGive(debug_lock);
 
   if (level >= sc_msg_level)
     SendLog2Screen(level, log_buf);
