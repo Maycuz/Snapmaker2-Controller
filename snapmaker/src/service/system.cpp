@@ -61,8 +61,6 @@ void SystemService::Init() {
   isr_e_rindex_ = 0;
   isr_e_windex_ = 0;
   isr_e_len_ = 0;
-
-  debug.Init();
 }
 
 /**
