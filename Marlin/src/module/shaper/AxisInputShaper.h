@@ -208,7 +208,6 @@ public:
         }
         else {
           print_tick = shaper_window.tick;
-          print_pos = shaper_window.pos;
           return false;
         }
       }
@@ -640,21 +639,21 @@ public:
 
       // Set from dm
       step_info.time_dir.axis = dm->axis;
+      step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
+      step_info.time_dir.move_bits = 1<<dm->axis;
+      step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
+      cur_print_tick = dm->print_tick;
 
-      // G92 sync block, do NOT update the cur_print_tick
-      if (INVALID_SYNC_POS != dm->sync_pos) {
-        step_info.time_dir.out_step = 0;
-        step_info.time_dir.sync = 1;
-        step_info.time_dir.itv = 0;
-        step_info.flag_data.sync_pos = dm->sync_pos;
-      }
       // A normal step output, update cur_print_tick;
-      else {
+      if (INVALID_SYNC_POS == dm->sync_pos) {
         step_info.time_dir.out_step = 1;
         step_info.time_dir.sync = 0;
-        step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
-        step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
-        step_info.time_dir.move_bits = 1<<dm->axis;
+      }
+      // G92 sync block, do NOT update the cur_print_tick
+      else {
+        step_info.time_dir.out_step = 0;
+        step_info.time_dir.sync = 1;
+        step_info.flag_data.sync_pos = dm->sync_pos;
       }
 
       // FILE POSITION
@@ -663,9 +662,6 @@ public:
         step_info.time_dir.update_file_pos = 1;
         step_info.flag_data.file_pos = dm->file_pos;
       }
-
-      // update cur tick
-      cur_print_tick = dm->print_tick;
 
       // Clear dm's data
       dm->have_gen_step_tick = false;
