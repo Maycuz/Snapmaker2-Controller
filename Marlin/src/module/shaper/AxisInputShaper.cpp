@@ -25,6 +25,8 @@ void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, float 
   this->const_dist_hold = false;
   this->tgf_1.flag = this->tgf_2.flag = false;
   this->no_more_move = true;
+  this->sync_pos = INVALID_SYNC_POS;
+  this->file_pos = INVALID_FILE_POS;
   shaper_init(this->type, this->frequency, this->zeta);
 }
 
@@ -220,6 +222,8 @@ void AxisInputShaper::reset() {
   print_tick = 0;
   print_pos = 0.0;
   delta_e = 0.0;
+  sync_pos = INVALID_SYNC_POS;
+  file_pos = INVALID_FILE_POS;
   shaper_window.reset();
 }
 

@@ -131,6 +131,7 @@ public:
 
   float print_pos;
   uint32_t print_tick;
+  uint32_t sync_tick;
   bool have_gen_step_tick;
 
   bool const_dist_hold;
@@ -422,7 +423,8 @@ private:
       // Push the sync's target position
       if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
         sync_pos = mq->moves[cls_p_m_idx].sync_target_pos[axis];
-        print_tick = mq->moves[cls_p_m_idx].end_tick;
+        sync_tick = mq->moves[cls_p_m_idx].end_tick;
+        LOG_I("Axis %u sync\n", axis);
       }
     }
 
@@ -445,7 +447,7 @@ private:
     // if (0 == shaper_window.wind_tick && InputShaperType::none == type) {
     if (INVALID_SYNC_POS != sync_pos) {
       // LOG_I("Axis %d sync in gen shape fun param\n", axis);
-      tgf_1.flag = TimeGenFunc::TGF_SYNC_FLAG;
+      tgf_1.flag |= TimeGenFunc::TGF_SYNC_FLAG;
       return true;
     }
 
@@ -544,7 +546,11 @@ private:
 
     if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
       tgf.flag = 0;
+      // print_tick = mq->moves[cls_p_m_idx].end_tick;
+      // print_tick = sync_tick;
+      print_tick = sync_tick;
       have_gen_step_tick = true;
+      LOG_I("Axis %u print tick update to %u for sync tick\n", print_tick);
       return true;
     }
 
