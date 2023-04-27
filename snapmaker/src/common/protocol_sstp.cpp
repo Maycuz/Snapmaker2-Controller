@@ -155,15 +155,16 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
   // calc checksum of data
   if (calc_chk != recv_chk) {
     SNAP_DEBUG_CMD_CHECKSUM_ERROR(true);
-    SERIAL_ECHOLNPAIR(LOG_HEAD "uncorrect calc checksum: ", hex_word(calc_chk), ", recv chksum: ", hex_word(recv_chk));
-    if (length > 0) {
-      SERIAL_ECHO(LOG_HEAD "content:");
-      for (int i = 0; i < length; i++) {
-        SERIAL_ECHOPAIR(" ", hex_byte(out[i]));
-      }
-      SERIAL_EOL();
-      SERIAL_EOL();
-    }
+    // 747 comment
+    // SERIAL_ECHOLNPAIR(LOG_HEAD "uncorrect calc checksum: ", hex_word(calc_chk), ", recv chksum: ", hex_word(recv_chk));
+    // if (length > 0) {
+    //   SERIAL_ECHO(LOG_HEAD "content:");
+    //   for (int i = 0; i < length; i++) {
+    //     SERIAL_ECHOPAIR(" ", hex_byte(out[i]));
+    //   }
+    //   SERIAL_EOL();
+    //   SERIAL_EOL();
+    // }
     return E_INVALID_DATA;
   }
 
@@ -313,7 +314,7 @@ uint16_t ProtocolSSTP::CalcChecksum(SSTP_Event_t &event) {
    * so we will have independent event_id and maybe more one op_code.
    * If yes, need to calculate them into checksum
    */
- 
+
   if (size > 0) {
     // data field exists
     if (event.op_code < SSTP_INVALID_OP_CODE) {
@@ -324,7 +325,7 @@ uint16_t ProtocolSSTP::CalcChecksum(SSTP_Event_t &event) {
       // No independent op_code
       checksum = (event.id<<8 | event.data[0]);
       start = 1;
-    } 
+    }
   }
   else {
     // no data field
@@ -351,7 +352,7 @@ uint16_t ProtocolSSTP::CalcChecksum(SSTP_Event_t &event) {
 out:
   while (checksum > 0xffff)
     checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
- 
+
   checksum = ~checksum;
   return (uint16_t)checksum;
 }

@@ -8,6 +8,8 @@
 struct StepFlagData {
   int         sync_pos;
   uint32_t    file_pos;
+  uint16_t    laser_pwr;
+  uint16_t    reserve;
 };
 
 struct StepTimeDir{
@@ -21,6 +23,12 @@ struct StepTimeDir{
 };
 
 class StepFlag {
+public:
+  static const uint32_t SIZE = 128;
+  struct StepFlagData buf[SIZE];
+  volatile uint32_t head;
+  volatile uint32_t tail;
+
 public:
   void reset();
   FORCE_INLINE bool isFull() { return ((head + 1) % SIZE) == tail; };
@@ -45,20 +53,11 @@ public:
       return false;
     }
   };
-
-
-public:
-  static const uint32_t SIZE = 64;
-
-public:
-  struct StepFlagData buf[SIZE];
-  volatile uint32_t head;
-  volatile uint32_t tail;
 };
 
 class StepsSeq {
 public:
-  static const uint32_t SIZE = 1024;
+  static const uint32_t SIZE = 512;
   struct StepTimeDir buf[SIZE];
   volatile uint32_t head;
   volatile uint32_t tail;

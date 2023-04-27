@@ -1237,15 +1237,14 @@ bool Planner::genStep() {
 
 void Planner::shaped_loop() {
 
-  bool has_gen_steps;
+  // bool has_gen_steps;
   planner_sch_info.entry_cnt++;
 
   // Use the left tick of all axes's first plues's tick
   axis_mng.updateOldestPluesTick();
   move_queue.moveTailForward(axis_mng.oldest_plues_tick);
 
-  if (genStep())
-    has_gen_steps = true;
+  genStep();
   #if 0
   struct step_seq_statistics_info sssi;
   sssi.sys_time_ms = millis();
@@ -1328,8 +1327,7 @@ void Planner::shaped_loop() {
   // sssi.use_rate = steps_seq.useRate();
   // sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
   // bool has_gen_steps = genStep();
-  if (genStep())
-    has_gen_steps = true;
+  genStep();
   // if (has_gen_steps) {
   //   axis_mng.step_seq_statistics_rb.push(sssi);
   //   sssi.sys_time_ms = millis();
@@ -1395,18 +1393,18 @@ void Planner::shaped_loop() {
   // else {
     if (step_generating) {
       uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
-      if (prepare_time_ms > 10) {
+      if (prepare_time_ms > 4) {
         vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/2));
       }
       else {
-        if (has_gen_steps && block_num) {
-          // continue
-          // LOG_I("+");
-        }
-        else {
+        // if (has_gen_steps && block_num) {
+        //   // continue
+        //   // LOG_I("+");
+        // }
+        // else {
           // Can not make any more steps just delay
           vTaskDelay(pdMS_TO_TICKS(1));
-        }
+        //}
       }
       // LOG_I("%u\n", (uint32_t)steps_seq.getBufMilliseconds()/4);
       // LOG_I("w");

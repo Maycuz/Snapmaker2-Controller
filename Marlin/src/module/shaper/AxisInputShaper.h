@@ -431,28 +431,34 @@ private:
     no_more_move = false;
     cls_p.m_idx = cls_p_m_idx;
     // First pluse move to next move, update file pos
-    if (axis == E_AXIS && 0 == shaper_window.t_cls_pls) {
+    // If this is a G92 position sync block, give up this block sync
+    if (axis == E_AXIS && INVALID_SYNC_POS == sync_pos) {
       file_pos = mq->moves[cls_p.m_idx].file_pos;
       block_sync_tick = mq->moves[cls_p_m_idx].start_tick;
     }
+    else {
+      file_pos = INVALID_FILE_POS;
+    }
     return true;
   }
+
   bool generateShapedFuncParams() {
+
     tgf_1.flag = tgf_2.flag = 0;
     tgf_1.coef_a = tgf_coef_a_sum;
 
-    // A sync
+    // A sync tgf, no motion, just return
     if (INVALID_SYNC_POS != sync_pos) {
       tgf_1.flag |= TimeGenFunc::TGF_SYNC_FLAG;
       return true;
     }
 
-    // A e block file record
+    // A E block sync for pause.
+    bool ret = false;
     if (INVALID_FILE_POS != file_pos) {
       tgf_1.flag |= TimeGenFunc::TGF_BLOCK_SYNC_FLAG;
-      return true;
+      ret = true;
     }
-
 
     float s1 = shaper_window.lpos;
     float s2 = shaper_window.pos;
@@ -465,14 +471,14 @@ private:
       #endif
       if (dt > 5.0) // millisecond
         const_dist_hold = true;
-      return false;
+      return ret;
     }
 
     tgf_1.coef_b = ds / dt - tgf_1.coef_a * dt;
     if (IS_ZERO(tgf_1.coef_a)) {
       if (IS_ZERO(tgf_1.coef_b)) {
         LOG_E("#e# Remove a const tgf\r\n");
-        return false;
+        return ret;
       }
       tgf_1.monotone = tgf_1.coef_b > 0.0 ? 1 : -1;
       tgf_1.start_tick = shaper_window.ltick;
@@ -555,12 +561,11 @@ private:
     }
 
     if (tgf.flag & TimeGenFunc::TGF_BLOCK_SYNC_FLAG) {
-      tgf.flag = 0;
+      tgf.flag &= ~(TimeGenFunc::TGF_BLOCK_SYNC_FLAG);   // just clear this flag
       print_tick = block_sync_tick;
       have_gen_step_tick = true;
       return true;
     }
-
     // float safe_strip = EPSILON;
     if (tgf.monotone < 0) {
       np = print_pos - mm_per_step;
