@@ -125,7 +125,7 @@ ErrCode UartHost::Send(SSTP_Event_t &event) {
     ret = xSemaphoreTake(mlock_uart_, configTICK_RATE_HZ/100);
     // ret = xSemaphoreTake(mlock_uart_, portMAX_DELAY);
     if (ret != pdPASS) {
-      SERIAL_ECHOLN(LOG_HEAD "failed to get HMI uart lock!");
+      // SERIAL_ECHOLN(LOG_HEAD "failed to get HMI uart lock!");
       return E_BUSY;
     }
   }
