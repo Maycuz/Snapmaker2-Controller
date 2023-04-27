@@ -132,6 +132,7 @@ public:
   float print_pos;
   uint32_t print_tick;
   uint32_t sync_tick;
+  uint32_t block_sync_tick;
   bool have_gen_step_tick;
 
   bool const_dist_hold;
@@ -432,9 +433,7 @@ private:
     // First pluse move to next move, update file pos
     if (axis == E_AXIS && 0 == shaper_window.t_cls_pls) {
       file_pos = mq->moves[cls_p.m_idx].file_pos;
-    }
-    else {
-      file_pos = INVALID_FILE_POS;
+      block_sync_tick = mq->moves[cls_p_m_idx].start_tick;
     }
     return true;
   }
@@ -447,6 +446,13 @@ private:
       tgf_1.flag |= TimeGenFunc::TGF_SYNC_FLAG;
       return true;
     }
+
+    // A e block file record
+    if (INVALID_FILE_POS != file_pos) {
+      tgf_1.flag |= TimeGenFunc::TGF_BLOCK_SYNC_FLAG;
+      return true;
+    }
+
 
     float s1 = shaper_window.lpos;
     float s2 = shaper_window.pos;
@@ -544,6 +550,13 @@ private:
     if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
       tgf.flag = 0;
       print_tick = sync_tick;
+      have_gen_step_tick = true;
+      return true;
+    }
+
+    if (tgf.flag & TimeGenFunc::TGF_BLOCK_SYNC_FLAG) {
+      tgf.flag = 0;
+      print_tick = block_sync_tick;
       have_gen_step_tick = true;
       return true;
     }

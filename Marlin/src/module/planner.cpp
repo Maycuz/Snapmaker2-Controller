@@ -1360,10 +1360,11 @@ void Planner::shaped_loop() {
 
   // No block, no activeDM and steps will runout, add a empty move
 
-  if (step_generating &&
+  if (axis_mng.endisable &&
+      step_generating &&
       steps_seq.getBufMilliseconds() < 5 &&
       move_queue.getFreeMoveSize() > 1) {
-    LOG_I("### No more motion, add a empty move for shaper finish\r\n");
+    // LOG_I("### No more motion, add a empty move for shaper finish\r\n");
     if (axis_mng.max_shaper_window_tick)
       move_queue.addEmptyMove(1.1 * axis_mng.max_shaper_window_tick);
     else
