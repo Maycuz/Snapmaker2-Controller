@@ -331,7 +331,7 @@ void motion_info_log(void) {
     //   planner_sch_info.entry_cnt
     //   );
     // }
-    LOG_I("EDA %f\n", axis_mng.e_sp->delta_e);
+    // LOG_I("EDA %f\n", axis_mng.e_sp->delta_e);
   }
 
 }
