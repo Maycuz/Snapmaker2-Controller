@@ -57,7 +57,7 @@ public:
 
 class StepsSeq {
 public:
-  static const uint32_t SIZE = 512;
+  static const uint32_t SIZE = 1024;
   struct StepTimeDir buf[SIZE];
   volatile uint32_t head;
   volatile uint32_t tail;

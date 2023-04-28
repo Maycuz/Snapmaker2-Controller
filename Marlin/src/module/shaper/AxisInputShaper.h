@@ -172,6 +172,7 @@ public:
   void reset();
   void setConfig(int type, float frequency, float zeta);
   bool prepare(int m_idx);
+
   bool genNextStep() {
     if (have_gen_step_tick) {
       return true;
@@ -202,12 +203,19 @@ public:
             return genNextStep();
           }
           else {
-            // current print tick and positoin must update to shapper window
+            // If generateShapedFuncParams return false, means no more motion
+            // print_tick and position update to shaper_window
             print_tick = shaper_window.tick;
             print_pos = shaper_window.pos;
           }
         }
         else {
+          // A adding empty move may generating any steps as position keep
+          // the same. If a adding emtpy move doest not generate steps, than
+          // the print tick remain on the last move. This will cause
+          // planner::synchronization halt. So when moveShaperWindowToNext()
+          // return false, no more move, we need to update the print_tick.
+          // But not update the position
           print_tick = shaper_window.tick;
           return false;
         }
@@ -382,13 +390,16 @@ private:
     #endif
   }
   bool moveShaperWindowToNext() {
+
     shaper_window.lpos = shaper_window.pos;
     shaper_window.ltick = shaper_window.tick;
+
     // The closest pluse move to next move
     CalcPluseInfo &cls_p = shaper_window.pluse[shaper_window.t_cls_pls];
     uint8_t cls_p_m_idx = mq->nextMoveIndex(cls_p.m_idx);
 
-    // sync_pos = INVALID_SYNC_POS;
+    sync_pos = INVALID_SYNC_POS;
+    file_pos = INVALID_FILE_POS;
     if (InputShaperType::none != type) {
       // Shaper axis do NOT support sync in moving as position is not in the correction. Skip the sync move
       do {
@@ -421,24 +432,24 @@ private:
         }
         return false;
       }
-      // Push the sync's target position
-      if (axis == E_AXIS && mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
-        sync_pos = mq->moves[cls_p_m_idx].sync_target_pos[axis];
-        sync_tick = mq->moves[cls_p_m_idx].end_tick;
-      }
     }
 
     no_more_move = false;
     cls_p.m_idx = cls_p_m_idx;
-    // First pluse move to next move, update file pos
-    // If this is a G92 position sync block, give up this block sync
-    if (axis == E_AXIS && INVALID_SYNC_POS == sync_pos) {
-      file_pos = mq->moves[cls_p.m_idx].file_pos;
-      block_sync_tick = mq->moves[cls_p_m_idx].start_tick;
+
+    if (axis == E_AXIS) {
+      // G92 sync
+      if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
+        sync_pos = mq->moves[cls_p_m_idx].sync_target_pos[axis];
+        sync_tick = mq->moves[cls_p_m_idx].end_tick;
+      }
+      else {
+        // If this is a G92 position sync block, give up this block sync
+        file_pos = mq->moves[cls_p.m_idx].file_pos;
+        block_sync_tick = mq->moves[cls_p_m_idx].start_tick;
+      }
     }
-    else {
-      file_pos = INVALID_FILE_POS;
-    }
+
     return true;
   }
 
@@ -454,11 +465,11 @@ private:
     }
 
     // A E block sync for pause.
-    bool ret = false;
-    if (INVALID_FILE_POS != file_pos) {
-      tgf_1.flag |= TimeGenFunc::TGF_BLOCK_SYNC_FLAG;
-      ret = true;
-    }
+    // bool ret = false;
+    // if (INVALID_FILE_POS != file_pos) {
+    //   tgf_1.flag |= TimeGenFunc::TGF_BLOCK_SYNC_FLAG;
+    //   ret = true;
+    // }
 
     float s1 = shaper_window.lpos;
     float s2 = shaper_window.pos;
@@ -471,14 +482,16 @@ private:
       #endif
       if (dt > 5.0) // millisecond
         const_dist_hold = true;
-      return ret;
+      // return ret;
+      return false;
     }
 
     tgf_1.coef_b = ds / dt - tgf_1.coef_a * dt;
     if (IS_ZERO(tgf_1.coef_a)) {
       if (IS_ZERO(tgf_1.coef_b)) {
         LOG_E("#e# Remove a const tgf\r\n");
-        return ret;
+        // return ret;
+        return false;
       }
       tgf_1.monotone = tgf_1.coef_b > 0.0 ? 1 : -1;
       tgf_1.start_tick = shaper_window.ltick;
@@ -560,12 +573,13 @@ private:
       return true;
     }
 
-    if (tgf.flag & TimeGenFunc::TGF_BLOCK_SYNC_FLAG) {
-      tgf.flag &= ~(TimeGenFunc::TGF_BLOCK_SYNC_FLAG);   // just clear this flag
-      print_tick = block_sync_tick;
-      have_gen_step_tick = true;
-      return true;
-    }
+    // if (tgf.flag & TimeGenFunc::TGF_BLOCK_SYNC_FLAG) {
+    //   tgf.flag &= ~(TimeGenFunc::TGF_BLOCK_SYNC_FLAG);   // just clear this flag
+    //   print_tick = block_sync_tick;
+    //   have_gen_step_tick = true;
+    //   return true;
+    // }
+
     // float safe_strip = EPSILON;
     if (tgf.monotone < 0) {
       np = print_pos - mm_per_step;
@@ -667,7 +681,7 @@ public:
         step_info.time_dir.out_step = 1;
         step_info.time_dir.sync = 0;
       }
-      // G92 sync block, do NOT update the cur_print_tick
+      // G92 sync block
       else {
         step_info.time_dir.out_step = 0;
         step_info.time_dir.sync = 1;
@@ -676,7 +690,7 @@ public:
 
       // FILE POSITION
       step_info.time_dir.update_file_pos = 0;
-      if (E_AXIS == dm->axis && INVALID_FILE_POS != dm->file_pos) {
+      if (INVALID_FILE_POS != dm->file_pos) {
         step_info.time_dir.update_file_pos = 1;
         step_info.flag_data.file_pos = dm->file_pos;
       }
@@ -685,6 +699,7 @@ public:
       dm->have_gen_step_tick = false;
       dm->sync_pos = INVALID_SYNC_POS;
       dm->file_pos = INVALID_FILE_POS;
+
       return true;
     }
     else {

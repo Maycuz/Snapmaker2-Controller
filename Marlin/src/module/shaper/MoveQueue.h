@@ -36,10 +36,14 @@ public:
   float delta_v;
   bool use_advance;
   uint32_t file_pos;
+  uint16_t laser_or_cnc_pwr;
 
 public:
   void log(uint8_t idx);
-  void reset() {flag = 0;}
+  void reset() {
+    flag = 0;
+    laser_or_cnc_pwr = 0;
+  }
 };
 
 class MoveQueue {

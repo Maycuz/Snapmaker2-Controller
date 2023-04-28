@@ -1569,17 +1569,18 @@ __start:
     HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
     if (last_got_step) {
       last_got_step = false;
-      // struct motion_info mi;
-      // mi.tag[0] = 'S'; mi.tag[1] = 'T'; mi.tag[2] = 'P'; mi.tag[3] = '\0';
-      // mi.sys_time_ms = millis();
-      // mi.block_count = planner.movesplanned();
-      // mi.block_planned_count = planner.optimally_planned_movesplanned();
-      // mi.move_count = move_queue.getMoveSize();
-      // mi.step_count = steps_seq.count();
-      // mi.step_prepare_time = steps_seq.getBufMilliseconds();
-      // mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
-      // mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
-      // mi.step_use_rate = steps_seq.useRate();
+      struct motion_info mi;
+      mi.tag[0] = 'S'; mi.tag[1] = 'T'; mi.tag[2] = 'P'; mi.tag[3] = '\0';
+      mi.sys_time_ms = millis();
+      mi.block_count = planner.movesplanned();
+      mi.block_planned_count = planner.optimally_planned_movesplanned();
+      mi.move_count = move_queue.getMoveSize();
+      mi.step_count = steps_seq.count();
+      mi.step_prepare_time = steps_seq.getBufMilliseconds();
+      mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
+      mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
+      mi.step_use_rate = steps_seq.useRate();
+      axis_mng.motion_info_rb.push(mi);
     }
     // #ifdef DEBUG_IO
     // WRITE(DEBUG_IO, 0);

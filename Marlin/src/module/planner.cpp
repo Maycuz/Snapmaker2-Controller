@@ -1237,14 +1237,16 @@ bool Planner::genStep() {
 
 void Planner::shaped_loop() {
 
-  // bool has_gen_steps;
+  // static uint32_t continue_cnt = 0;
+  bool has_gen_steps;
   planner_sch_info.entry_cnt++;
 
   // Use the left tick of all axes's first plues's tick
   axis_mng.updateOldestPluesTick();
   move_queue.moveTailForward(axis_mng.oldest_plues_tick);
 
-  genStep();
+  if (genStep()) has_gen_steps = true;
+  // genStep();
   #if 0
   struct step_seq_statistics_info sssi;
   sssi.sys_time_ms = millis();
@@ -1327,7 +1329,8 @@ void Planner::shaped_loop() {
   // sssi.use_rate = steps_seq.useRate();
   // sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
   // bool has_gen_steps = genStep();
-  genStep();
+  if (genStep()) has_gen_steps = true;
+  // genStep();
   // if (has_gen_steps) {
   //   axis_mng.step_seq_statistics_rb.push(sssi);
   //   sssi.sys_time_ms = millis();
@@ -1360,8 +1363,12 @@ void Planner::shaped_loop() {
 
   if (axis_mng.endisable &&
       step_generating &&
-      steps_seq.getBufMilliseconds() < 5 &&
-      move_queue.getFreeMoveSize() > 1) {
+      steps_seq.getBufMilliseconds() < 5) {
+
+    while(move_queue.getFreeMoveSize() < 1) {
+      genStep();
+      LOG_I("wait for move room for adding a empty move\n");
+    }
     // LOG_I("### No more motion, add a empty move for shaper finish\r\n");
     if (axis_mng.max_shaper_window_tick)
       move_queue.addEmptyMove(1.1 * axis_mng.max_shaper_window_tick);
@@ -1391,36 +1398,35 @@ void Planner::shaped_loop() {
   //   axis_mng.motion_info_rb.push(mi);
   // }
   // else {
-    if (step_generating) {
-      uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
-      if (prepare_time_ms > 4) {
-        vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/2));
-      }
-      else {
-        // if (has_gen_steps && block_num) {
-        //   // continue
-        //   // LOG_I("+");
-        // }
-        // else {
-          // Can not make any more steps just delay
-          vTaskDelay(pdMS_TO_TICKS(1));
-        //}
-      }
-      // LOG_I("%u\n", (uint32_t)steps_seq.getBufMilliseconds()/4);
-      // LOG_I("w");
-      // planner_sch_info.sleep_ms = (uint32_t) (steps_seq.getBufMilliseconds()/2);
-      // planner_sch_info.start_sleep_ms = millis();
-      // planner_sch_info.end_sleep_ms = planner_sch_info.start_sleep_ms + planner_sch_info.sleep_ms;
-      // vTaskDelay(pdMS_TO_TICKS(steps_seq.getBufMilliseconds()/4));
+  if (step_generating) {
+    uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
+    if (prepare_time_ms > 10) {
+      vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/2));
     }
     else {
-      // LOG_I(".");
-      // planner_sch_info.sleep_ms = 1;
-      // planner_sch_info.start_sleep_ms = millis();
-      // planner_sch_info.end_sleep_ms = planner_sch_info.start_sleep_ms + planner_sch_info.sleep_ms;
-      vTaskDelay(pdMS_TO_TICKS(1));
+      if (has_gen_steps && block_num) {
+        // continue
+        // LOG_I("+");
+      }
+      else {
+        // Can not make any more steps just delay
+        vTaskDelay(pdMS_TO_TICKS(1));
+      }
     }
-  //}
+    // LOG_I("%u\n", (uint32_t)steps_seq.getBufMilliseconds()/4);
+    // LOG_I("w");
+    // planner_sch_info.sleep_ms = (uint32_t) (steps_seq.getBufMilliseconds()/2);
+    // planner_sch_info.start_sleep_ms = millis();
+    // planner_sch_info.end_sleep_ms = planner_sch_info.start_sleep_ms + planner_sch_info.sleep_ms;
+    // vTaskDelay(pdMS_TO_TICKS(steps_seq.getBufMilliseconds()/4));
+  }
+  else {
+    // LOG_I(".");
+    // planner_sch_info.sleep_ms = 1;
+    // planner_sch_info.start_sleep_ms = millis();
+    // planner_sch_info.end_sleep_ms = planner_sch_info.start_sleep_ms + planner_sch_info.sleep_ms;
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
 }
 
 

@@ -155,16 +155,15 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
   // calc checksum of data
   if (calc_chk != recv_chk) {
     SNAP_DEBUG_CMD_CHECKSUM_ERROR(true);
-    // 747 comment
-    // SERIAL_ECHOLNPAIR(LOG_HEAD "uncorrect calc checksum: ", hex_word(calc_chk), ", recv chksum: ", hex_word(recv_chk));
-    // if (length > 0) {
-    //   SERIAL_ECHO(LOG_HEAD "content:");
-    //   for (int i = 0; i < length; i++) {
-    //     SERIAL_ECHOPAIR(" ", hex_byte(out[i]));
-    //   }
-    //   SERIAL_EOL();
-    //   SERIAL_EOL();
-    // }
+    SERIAL_ECHOLNPAIR(LOG_HEAD "uncorrect calc checksum: ", hex_word(calc_chk), ", recv chksum: ", hex_word(recv_chk));
+    if (length > 0) {
+      SERIAL_ECHO(LOG_HEAD "content:");
+      for (int i = 0; i < length; i++) {
+        SERIAL_ECHOPAIR(" ", hex_byte(out[i]));
+      }
+      SERIAL_EOL();
+      SERIAL_EOL();
+    }
     return E_INVALID_DATA;
   }
 

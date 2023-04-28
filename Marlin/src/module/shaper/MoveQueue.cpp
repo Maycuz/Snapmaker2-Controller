@@ -138,6 +138,13 @@ bool MoveQueue::genMoves(block_t* block) {
   if (accelDistance > EPSILON) {
     Move * am = addMove(entry_speed, cruise_speed, acceleration, accelDistance, axis_r, acc_tick);
     am->file_pos = file_pos;
+    if (planner.laser_inline.status.isEnabled) {
+      am->laser_or_cnc_pwr = block->laser.power;
+    }
+    else {
+      am->laser_or_cnc_pwr = 0;
+    }
+    // am->las
     #if ENABLED(LIN_ADVANCE)
     float K = block->use_advance_lead ? planner.extruder_advance_K[active_extruder] * 1000 : 0;
     am->delta_v = IS_ZERO(acceleration) ? 0 : K * acceleration;
@@ -148,6 +155,12 @@ bool MoveQueue::genMoves(block_t* block) {
     uint32_t plateau_tick = ms2tick * plateau * i_cruise_speed;
     Move * am = addMove(cruise_speed, cruise_speed, 0, plateau, axis_r, plateau_tick);
     am->file_pos = file_pos;
+    if (planner.laser_inline.status.isEnabled) {
+      am->laser_or_cnc_pwr = block->laser.power;
+    }
+    else {
+      am->laser_or_cnc_pwr = 0;
+    }
     #if ENABLED(LIN_ADVANCE)
     am->delta_v = 0.0;
     am->use_advance = false;
@@ -156,6 +169,12 @@ bool MoveQueue::genMoves(block_t* block) {
   if (decelDistance > EPSILON) {
     Move * am = addMove(cruise_speed, leave_speed, -acceleration, decelDistance, axis_r, decel_tick);
     am->file_pos = file_pos;
+    if (planner.laser_inline.status.isEnabled) {
+      am->laser_or_cnc_pwr = block->laser.power;
+    }
+    else {
+      am->laser_or_cnc_pwr = 0;
+    }
     #if ENABLED(LIN_ADVANCE)
     float K = block->use_advance_lead ? planner.extruder_advance_K[active_extruder] * 1000 : 0;
     am->delta_v = IS_ZERO(acceleration) ? 0 : K * (-acceleration);
@@ -202,15 +221,17 @@ Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float dis
 
 void MoveQueue::addEmptyMove(uint32_t time) {
   LOG_I("Empty move time tick %u\n", time);
-  addMove(0, 0, 0, 0, ZERO_AXIS_R, time);
+  Move * am = addMove(0, 0, 0, 0, ZERO_AXIS_R, time);
+  am->laser_or_cnc_pwr = 0;
 }
 
 void MoveQueue::addSyncMove(int32_t *sync_pos) {
-  Move *add_move = addMove(0, 0, 0, 0, ZERO_AXIS_R, 0);
-  add_move->flag = BLOCK_FLAG_SYNC_POSITION;
+  Move *am = addMove(0, 0, 0, 0, ZERO_AXIS_R, 0);
+  am->flag = BLOCK_FLAG_SYNC_POSITION;
   LOOP_SHAPER_AXES(i) {
-    add_move->sync_target_pos[i] = sync_pos[i];
+    am->sync_target_pos[i] = sync_pos[i];
   }
+  am->laser_or_cnc_pwr = 0;
 }
 
 // float MoveQueue::getAxisPosition(int move_index, int axis, uint32_t tick) {
