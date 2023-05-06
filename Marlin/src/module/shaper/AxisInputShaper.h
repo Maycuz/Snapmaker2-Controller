@@ -121,6 +121,10 @@ struct motion_info {
   float       move_use_rate;
   float       step_use_rate;
   float       step_prepare_time;
+  uint32_t    move_tail_tick;
+  uint32_t    move_head_tick;
+  uint32_t    move_can_print_tick;
+  uint32_t    current_print_tick;
 };
 
 class AxisInputShaper

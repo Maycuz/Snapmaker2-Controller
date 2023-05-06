@@ -1197,6 +1197,7 @@ bool Planner::has_motion_queue() {
 
 bool Planner::genStep() {
   bool have_gen = 0;
+  uint32_t gc = 0;
   StepInfo step_info;
   while (!steps_seq.isFull() && (!axis_mng.reqAbort)) {
     if (axis_mng.getNextStep(step_info)) {
@@ -1213,6 +1214,7 @@ bool Planner::genStep() {
           #endif
         }
       }
+      gc++;
     }
     else {
       break;
@@ -1231,6 +1233,10 @@ bool Planner::genStep() {
   //   }
   //   if (cnt) LOG_I("%01X ", cnt);
   // }
+  // if (gc || steps_seq.isFull()) {
+  // if (step_generating) {
+  //   LOG_I("%u: gc %u %c\n", millis(), gc, steps_seq.isFull() ? 'F' : 'N');
+  // }
 
   return have_gen;
 }
@@ -1238,7 +1244,7 @@ bool Planner::genStep() {
 void Planner::shaped_loop() {
 
   // static uint32_t continue_cnt = 0;
-  bool has_gen_steps;
+  bool has_gen_steps = false;
   planner_sch_info.entry_cnt++;
 
   // Use the left tick of all axes's first plues's tick
@@ -1281,35 +1287,42 @@ void Planner::shaped_loop() {
     clear_block_buffer();
     delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
     axis_mng.abort();
-    axis_mng.reqAbort = false;
     step_generating = false;
     LOG_I("Adding a empty move after abort\r\n");
     move_queue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
     axis_mng.prepare(move_queue.move_tail);
+    axis_mng.reqAbort = false;
   }
 
+  uint8_t block_num;
   static block_t *bt = nullptr;
-  uint8_t block_num = movesplanned();
 
   // xSemaphoreTake(plan_buffer_lock, portMAX_DELAY);
   //if (pdPASS == xSemaphoreTake(plan_buffer_lock, 0)) {
-  {
+  do {
+    block_num = movesplanned();
     if (!bt && block_num) {
       // Have no more optimal block
       if (block_buffer_nonbusy == block_buffer_planned) {
         // Steps will runout in a few millisecond, just take this block. If 5 millisecond can product new steps?
         if (steps_seq.getBufMilliseconds() < 20) {
           bt = get_current_block();
+          // LOG_I("0 ");
         }
       }
       // Just take this block as this block has been optimaled.
       else {
         bt = get_current_block();
+        // LOG_I("1 ");
       }
     }
 
     if (bt) {
+      // Use the left tick of all axes's first plues's tick
+      axis_mng.updateOldestPluesTick();
+      move_queue.moveTailForward(axis_mng.oldest_plues_tick);
       if (move_queue.genMoves(bt)) {
+        // LOG_I("2 ");
         // release_current_block();
         discard_current_block();
         bt = nullptr;
@@ -1320,9 +1333,15 @@ void Planner::shaped_loop() {
         #endif
         // LOG_I(">");
       }
+      else {
+        break;
+      }
+    }
+    else {
+      break;
     }
     // xSemaphoreGive(plan_buffer_lock);
-  }
+  } while(steps_seq.getBufMilliseconds() > 5);
 
   // struct step_seq_statistics_info sssi;
   // sssi.sys_time_ms = millis();
@@ -1400,16 +1419,20 @@ void Planner::shaped_loop() {
   // else {
   if (step_generating) {
     uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
-    if (prepare_time_ms > 10) {
+    if (prepare_time_ms > 5) {
+      NOMORE(prepare_time_ms, 50u);
+      // LOG_I("%u, ht %u, tt %u\n", prepare_time_ms/2, steps_seq.buf_tick_head, steps_seq.buf_tick_tail);
+      // LOG_I("%u\n", prepare_time_ms/2);
       vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/2));
     }
     else {
       if (has_gen_steps && block_num) {
         // continue
-        // LOG_I("+");
+        LOG_I("+");
       }
       else {
         // Can not make any more steps just delay
+        // LOG_I("1\n");
         vTaskDelay(pdMS_TO_TICKS(1));
       }
     }

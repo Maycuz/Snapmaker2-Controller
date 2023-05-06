@@ -1381,8 +1381,8 @@ __start:
   // Program timer compare for the maximum period, so it does NOT
   // flag an interrupt while this ISR is running - So changes from small
   // periods to big periods are respected and the timer does not reset to 0
-  // HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_TIMER_TYPE_MAX));
-  timer_set_reload(STEP_TIMER_DEV, hal_timer_t(HAL_TIMER_TYPE_MAX));
+  HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_TIMER_TYPE_MAX));
+  // timer_set_reload(STEP_TIMER_DEV, hal_timer_t(HAL_TIMER_TYPE_MAX));
 
   // checking power loss here because when no moves in block buffer, ISR will not
   // execute to endstop.update(), then we cannot check power loss there.
@@ -1498,6 +1498,7 @@ __start:
 
   if (sif_valid) {
     last_got_step = true;
+
     struct StepFlagData flag_data;
     if ((step_time_dir.sync || step_time_dir.update_file_pos) && steps_flag.popQueue(&flag_data)) {
       // update file pos
@@ -1507,21 +1508,6 @@ __start:
       // sync axis pos
       if (step_time_dir.sync) {
         count_position[step_time_dir.axis] = flag_data.sync_pos;
-        // recursion = true;
-        // goto __out_pluse_falling_edge;
-        if (X_AXIS == fall_edge_axis) {
-          PULSE_STOP(X);
-        }
-        else if(Y_AXIS == fall_edge_axis) {
-          PULSE_STOP(Y);
-        }
-        else if(Z_AXIS == fall_edge_axis) {
-          PULSE_STOP(Z);
-        }
-        else if(E_AXIS == fall_edge_axis) {
-          PULSE_STOP(E);
-        }
-        goto __start;
       }
     }
 
@@ -1529,36 +1515,36 @@ __start:
     if (step_time_dir.itv > (cur_tick + 4 * STEPPER_TIMER_TICKS_PER_US)) {
       HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv));
       // goto __out_pluse_falling_edge;
-        if (X_AXIS == fall_edge_axis) {
-          PULSE_STOP(X);
-        }
-        else if(Y_AXIS == fall_edge_axis) {
-          PULSE_STOP(Y);
-        }
-        else if(Z_AXIS == fall_edge_axis) {
-          PULSE_STOP(Z);
-        }
-        else if(E_AXIS == fall_edge_axis) {
-          PULSE_STOP(E);
-        }
-        // goto __start;
+      if (X_AXIS == fall_edge_axis) {
+        PULSE_STOP(X);
+      }
+      else if(Y_AXIS == fall_edge_axis) {
+        PULSE_STOP(Y);
+      }
+      else if(Z_AXIS == fall_edge_axis) {
+        PULSE_STOP(Z);
+      }
+      else if(E_AXIS == fall_edge_axis) {
+        PULSE_STOP(E);
+      }
+      // goto __start;
     }
     else {
       // recursion = true;
       // goto __out_pluse_falling_edge;
-        if (X_AXIS == fall_edge_axis) {
-          PULSE_STOP(X);
-        }
-        else if(Y_AXIS == fall_edge_axis) {
-          PULSE_STOP(Y);
-        }
-        else if(Z_AXIS == fall_edge_axis) {
-          PULSE_STOP(Z);
-        }
-        else if(E_AXIS == fall_edge_axis) {
-          PULSE_STOP(E);
-        }
-        goto __start;
+      if (X_AXIS == fall_edge_axis) {
+        PULSE_STOP(X);
+      }
+      else if(Y_AXIS == fall_edge_axis) {
+        PULSE_STOP(Y);
+      }
+      else if(Z_AXIS == fall_edge_axis) {
+        PULSE_STOP(Z);
+      }
+      else if(E_AXIS == fall_edge_axis) {
+        PULSE_STOP(E);
+      }
+      goto __start;
     }
   }
   else {
@@ -1580,6 +1566,10 @@ __start:
       mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
       mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
       mi.step_use_rate = steps_seq.useRate();
+      mi.move_head_tick = move_queue.moves_head_tick;
+      mi.move_tail_tick = move_queue.moves_tail_tick;
+      mi.move_can_print_tick = move_queue.can_print_head_tick;
+      mi.current_print_tick = axis_mng.cur_print_tick;
       axis_mng.motion_info_rb.push(mi);
     }
     // #ifdef DEBUG_IO

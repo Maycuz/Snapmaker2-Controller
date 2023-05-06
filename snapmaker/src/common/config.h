@@ -31,7 +31,7 @@
 
 // task parameters for marlin loop task
 #define MARLIN_LOOP_TASK_PRIO (3)
-#define MARLIN_LOOP_STACK_DEPTH 1024
+#define MARLIN_LOOP_STACK_DEPTH (1024)
 
 // task parameters for hmi task
 #define HMI_TASK_PRIO (3)

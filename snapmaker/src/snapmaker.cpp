@@ -205,6 +205,7 @@ static void planner_task(void *param) {
   // LOG_I("System start, adding a empty move for shaper\r\n");
   // move_queue.addEmptyMove(2 * axis_mng.max_shaper_window_tick);
   // axis_mng.prepare(move_queue.move_tail);
+  // steps_seq.buf_tick_test(1000);
 
   while(1) {
     planner.shaped_loop();
@@ -305,6 +306,12 @@ void motion_info_log(void) {
       LOG_I("block count: %u, optimally planned: %u\n", mi.block_count, mi.block_planned_count);
       LOG_I("move count and use rate: %u,\t%.1f\n", mi.move_count, mi.move_use_rate);
       LOG_I("steps count and use rate: %u,\t%.1f\n", mi.step_count, mi.step_use_rate);
+      float msp_ms = (float)(mi.move_head_tick - mi.move_tail_tick) / STEPPER_TIMER_TICKS_PER_MS;
+      float mmsp_ms = (float)(mi.move_head_tick - mi.current_print_tick) / STEPPER_TIMER_TICKS_PER_MS;
+      float mnmsp_ms = (float)(mi.current_print_tick - mi.move_tail_tick) / STEPPER_TIMER_TICKS_PER_MS;
+      LOG_I("move tick: head %u, tail %u, move time spand %fms\n", mi.move_head_tick, mi.move_tail_tick, msp_ms);
+      LOG_I("move motion time spand %f ms, move no motion time spand %f ms\n", mmsp_ms, mnmsp_ms);
+      // LOG_I("move can print tick %u, current print tick %u\n", mmsp_ms, mnmsp_ms);
       LOG_I("step prepare time(ms): %f\n\n", mi.step_prepare_time);
     }
   }

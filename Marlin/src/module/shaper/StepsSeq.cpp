@@ -115,21 +115,21 @@ void StepsSeq::push_pop_test(uint32_t round) {
 void StepsSeq::buf_tick_test(uint32_t round) {
   uint32_t buf_tick = 0;
   struct StepTimeDir sif;
-  uint32_t i = round;
 
+  uint32_t i = round;
   reset();
   while(i--) {
     srand(millis());
     sif.itv = (rand() & 0xFFFF);
-    buf_tick_head += sif.itv;
+    buf_tick += sif.itv;
     pushQueue(sif);
-    LOG_I("\r\nbuf tick %d, getBufTick() %d\r\n", buf_tick, getBufTick());
+    LOG_I("\r\nround %d buf tick %d, getBufTick() %d\r\n", i, buf_tick, getBufTick());
   }
 
   i = round;
   while(i--) {
     popQueue(&sif);
-    buf_tick_tail -= sif.itv;
-    LOG_I("\r\nbuf tick %d, getBufTick() %d\r\n", buf_tick, getBufTick());
+    buf_tick -= sif.itv;
+    LOG_I("\r\nround %d buf tick %d, getBufTick() %d\r\n", i, buf_tick, getBufTick());
   }
 }

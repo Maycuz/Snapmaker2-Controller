@@ -63,17 +63,16 @@ public:
   volatile uint32_t tail;
   volatile uint32_t buf_tick_head;
   volatile uint32_t buf_tick_tail;
-  uint32_t s2t = STEPPER_TIMER_RATE;
 
 public:
   void reset();
-  FORCE_INLINE bool isFull() { return ((head + 1) & (SIZE - 1)) == tail; };
+  FORCE_INLINE bool isFull() { return ((head + 1) & (SIZE-1)) == tail; };
   FORCE_INLINE bool isEmpty() { return head == tail; };
   FORCE_INLINE bool pushQueue(struct StepTimeDir &sif) {
     if (!isFull()) {
       buf[head] = sif;
+      buf_tick_head += buf[head].itv;
       head = (head + 1) & (SIZE-1);
-      buf_tick_head += sif.itv;
       return true;
     }
     else {
@@ -83,24 +82,19 @@ public:
   FORCE_INLINE bool popQueue(struct StepTimeDir *sif) {
     if (!isEmpty()) {
       *sif = buf[tail];
+      buf_tick_tail += buf[tail].itv;
       tail = (tail + 1) & (SIZE-1);
-      buf_tick_tail += sif->itv;
+      // buf_tick_tail += sif->itv;
       return true;
     }
     else {
       return false;
     }
   };
-  // bool isEmpty();
-  // bool isFull();
-  // uint32_t count();
-  // uint32_t getBufTick();
-  // float getBufMilliseconds();
 
-
-  FORCE_INLINE uint32_t count() { return ((int)(head - tail) + SIZE) % SIZE; };
+  FORCE_INLINE uint32_t count() { return ((int)(head - tail) + SIZE) & (SIZE - 1); };
   FORCE_INLINE uint32_t getBufTick() { return (buf_tick_head - buf_tick_tail); };
-  FORCE_INLINE float getBufMilliseconds() { return getBufTick() * 1000.0 / STEPPER_TIMER_RATE; };
+  FORCE_INLINE float getBufMilliseconds() { return (float)getBufTick() / STEPPER_TIMER_TICKS_PER_MS; };
   FORCE_INLINE float useRate(void) { return 100.0 * count() / SIZE; };
 
   void logSize();
