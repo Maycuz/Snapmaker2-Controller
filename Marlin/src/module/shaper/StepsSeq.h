@@ -84,7 +84,6 @@ public:
       *sif = buf[tail];
       buf_tick_tail += buf[tail].itv;
       tail = (tail + 1) & (SIZE-1);
-      // buf_tick_tail += sif->itv;
       return true;
     }
     else {

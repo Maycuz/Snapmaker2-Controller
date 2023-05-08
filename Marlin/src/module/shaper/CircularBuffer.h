@@ -4,22 +4,6 @@
 #include "../../Marlin.h"
 #include "../../../../snapmaker/src/common/debug.h"
 
-// template<typename T> // T is circular_buffer type
-// class circular_buffer_iterator {
-//   public:
-//     typedef T cbuf_type;
-//     circular_buffer_iterator(
-//          cbuf_type *b, size_t start_pos)
-//          : buf_(b), pos_(start_pos) {}
-//     T &operator*() { return (*buf_)[pos_]; }
-//     T *operator->() { return &(operator*()); }
-//     T &operator++() { pos_++; return *this; }
-
-//   private:
-//     cbuf_type *buf_;
-//     size_t     pos_;
-// };
-
 template <class T>
 class circular_buffer {
 
@@ -30,9 +14,6 @@ class circular_buffer {
   typedef const T   &const_reference;
   typedef size_t     size_type;
   typedef ptrdiff_t  difference_type;
-  // typedef circular_buffer_iterator<circular_buffer> iterator;
-  // iterator begin() { return iterator(this, 0); }
-  // iterator end() { return iterator(this, size()); }
 
   public:
     explicit circular_buffer(size_t capacity = 64)

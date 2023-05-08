@@ -42,7 +42,6 @@
 #include "../../Marlin/src/module/shaper/MoveQueue.h"
 #include "../../Marlin/src/module/shaper/TimeGenFunc.h"
 #include "../../Marlin/src/module/shaper/StepsSeq.h"
-#include "../../Marlin/src/module/shaper/shaper_type_define.h"
 
 
 SnapmakerHandle_t sm2_handle;

@@ -27,6 +27,7 @@ void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, float 
   this->sync_pos = INVALID_SYNC_POS;
   this->file_pos = INVALID_FILE_POS;
   this->g1.valid = this->g2.valid = false;
+  this->delta_e = 0.0;
   shaper_init(this->type, this->frequency, this->zeta);
 }
 

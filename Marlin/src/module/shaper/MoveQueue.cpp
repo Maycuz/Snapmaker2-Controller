@@ -2,10 +2,11 @@
 #include "AxisInputShaper.h"
 #include "../../../../snapmaker/src/common/debug.h"
 
+
 MoveQueue move_queue;
 uint32_t MoveQueue::ms2tick;
-
 static float ZERO_AXIS_R[NUM_AXIS] = {.0, .0, .0, .0, .0};
+
 
 MoveQueue::MoveQueue() {
   move_tail = move_head = 0;
@@ -37,10 +38,8 @@ void Move::log(uint8_t idx) {
   LOG_I("end_v steps/ms: %f\r\n", end_v);
   LOG_I("start tick: %u\r\n", start_tick);
   LOG_I("end tick: %u\r\n", end_tick);
-  LOG_I("start pos: %f, %f, %f, %f\r\n", start_pos[0], start_pos[1], start_pos[2], start_pos[3]);
-  LOG_I("end pos: %f, %f, %f, %f\r\n", end_pos[0], end_pos[1], end_pos[2], end_pos[3]);
-  // LOG_I("start pos: %u, %u, %u, %u\r\n", start_pos[0], start_pos[1], start_pos[2], start_pos[3]);
-  // LOG_I("end pos: %u, %u, %u, %u\r\n", end_pos[0], end_pos[1], end_pos[2], end_pos[3]);
+  LOG_I("start pos: %f, %f, %f, %f\r\n", start_pos[X_AXIS], start_pos[Y_AXIS], start_pos[Z_AXIS], start_pos[E_AXIS]);
+  LOG_I("end pos: %f, %f, %f, %f\r\n", end_pos[X_AXIS], end_pos[Y_AXIS], end_pos[Z_AXIS], end_pos[E_AXIS]);
   LOG_I("axis ratio:%f, %f, %f, %f, %f\r\n", axis_r[X_AXIS], axis_r[Y_AXIS], axis_r[Z_AXIS], axis_r[B_AXIS], axis_r[E_AXIS]);
 }
 
@@ -56,7 +55,6 @@ void MoveQueue::reset() {
 
 bool MoveQueue::genMoves(block_t* block) {
   if (getFreeMoveSize() < 3) {
-    // LOG_I("Move not enough\r\n");
     return false;
   }
 
@@ -69,14 +67,6 @@ bool MoveQueue::genMoves(block_t* block) {
   float entry_speed   = block->initial_speed / 1000.0f;
   float leave_speed   = block->final_speed / 1000.0f;
   float cruise_speed  = block->cruise_speed / 1000.0f;
-
-  // 747 DEBUG
-  // LOG_I("==== block =====\r\n");
-  // LOG_I("millimeters: %f\r\n", block->millimeters);
-  // LOG_I("initial_speed: %f\r\n", block->initial_speed);
-  // LOG_I("final_speed: %f\r\n", block->final_speed);
-  // LOG_I("cruise_speed: %f\r\n", block->cruise_speed);
-  // LOG_I("acceleration: %f\r\n", block->acceleration);
 
   if (cruise_speed < EPSILON) {
     LOG_I("A zero speed block has no move\r\n");
@@ -130,10 +120,6 @@ bool MoveQueue::genMoves(block_t* block) {
   axis_r[B_AXIS] = block->axis_r[B_AXIS];
   axis_r[E_AXIS] = block->axis_r[E_AXIS];
 
-  // if (block->millimeters > 0.0 && axis_r[E_AXIS] > 0.0) {
-  //   LOG_I("E move %f\n", block->millimeters * axis_r[E_AXIS]);
-  // }
-
   file_pos = block->filePos;
   if (accelDistance > EPSILON) {
     Move * am = addMove(entry_speed, cruise_speed, acceleration, accelDistance, axis_r, acc_tick);
@@ -144,7 +130,6 @@ bool MoveQueue::genMoves(block_t* block) {
     else {
       am->laser_or_cnc_pwr = 0;
     }
-    // am->las
     #if ENABLED(LIN_ADVANCE)
     float K = block->use_advance_lead ? planner.extruder_advance_K[active_extruder] * 1000 : 0;
     am->delta_v = IS_ZERO(acceleration) ? 0 : K * acceleration;
@@ -186,7 +171,6 @@ bool MoveQueue::genMoves(block_t* block) {
 }
 
 Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float distance, float axis_r[], uint32_t t) {
-
   Move &move = moves[move_head];
   move.use_advance = false;
   move.flag = 0;
@@ -234,30 +218,13 @@ void MoveQueue::addSyncMove(int32_t *sync_pos) {
   am->laser_or_cnc_pwr = 0;
 }
 
-// float MoveQueue::getAxisPosition(int move_index, int axis, uint32_t tick) {
-// // int MoveQueue::getAxisPosition(int move_index, int axis, uint32_t tick) {
-//   Move &move = moves[move_index];
-//   float axis_r = move.axis_r[axis];
-//   float delta_time = (float)(tick - move.start_tick) / ms2tick;
-//   // LOG_I("Tick %d, move.start_tick %d, delta_time %f\r\n", tick, move.start_tick, delta_time);
-//   // int move_dist = LROUND((move.start_v + 0.5f * move.accelerate * delta_time) * delta_time * axis_r);
-//   // float move_dist = (move.start_v + 0.5f * move.accelerate * delta_time) * delta_time * axis_r;
-//   // return move.start_pos[axis] + move_dist;
-//   // return  move_dist;
-//   return move.start_pos[axis] + (move.start_v + 0.5f * move.accelerate * delta_time) * delta_time * axis_r;
-// }
-
 void MoveQueue::moveTailForward(uint32_t print_tick) {
-
   if (!is_init)
     return;
 
   while ((move_tail != move_head) && ELAPSED(print_tick, moves[move_tail].end_tick + SAFE_ISOLATION_TIME_STRIP)) {
-  // while ((move_tail != move_head) && ELAPSED(print_tick, moves[move_tail].end_tick)) {
-    // LOG_I("print_tick %d, move[tail] end_tick %d\r\n", print_tick, moves[move_tail].end_tick);
     moves[move_tail].reset();
     move_tail = MOVE_MOD(move_tail + 1);
-    // LOG_I("MT to %d\r\n", move_tail);
     #ifdef SHAPER_LOG_ENABLE
     LOG_I("MT to %d\r\n", move_tail);
     #endif
@@ -266,7 +233,6 @@ void MoveQueue::moveTailForward(uint32_t print_tick) {
   if ((moves_head_tick - moves_tail_tick) < max_shape_window_tick && getMoveSize() > MOVE_SIZE - 5) {
     LOG_E("#### Move queue spend tick < max shaper window tick\n");
   }
-
 }
 
 bool MoveQueue::haveMotion() {

@@ -129,29 +129,24 @@ struct motion_info {
 class AxisInputShaper
 {
 public:
-  int axis;
   int dir;
-
+  int axis;
   float print_pos;
   uint32_t print_tick;
   uint32_t sync_tick;
   uint32_t block_sync_tick;
-
-  struct genStep g1, g2;
-
   int sync_pos;
   uint32_t file_pos;
-
+  TimeGenFunc tgf_1, tgf_2;
+  struct genStep g1, g2;
+  float delta_e;
+  bool no_more_move;
   float right_delta;              // millisecond
   float left_delta;               // millisecond
   ShaperWindow shaper_window;
-
-  TimeGenFunc tgf_1, tgf_2;
-  float delta_e = 0;
   #ifdef LOG_MOTION_INFO
   circular_buffer<TimeGenFunc> tgf_rb;
   #endif
-
   MoveQueue *mq;
   InputShaperType type, backup_type;
   float frequency;
@@ -162,8 +157,6 @@ public:
   float tgf_coef_a_sum;
   float mm_per_step;
   float mm_per_half_step;
-
-  bool no_more_move;
 
 public:
   void init(int axis, MoveQueue *mq, InputShaperType type, float freq, float zeta, uint32_t s2t);
@@ -538,12 +531,9 @@ public:
 
     return true;
   }
-
 };
 
-class AxisMng
-{
-
+class AxisMng {
 public:
   void init(MoveQueue *mq, uint32_t m2t);
   void loop(void);
