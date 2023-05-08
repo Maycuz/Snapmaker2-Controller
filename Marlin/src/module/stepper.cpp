@@ -1376,13 +1376,11 @@ __start:
   #endif
 
   static bool last_got_step = false;
-  // bool recursion = false;
 
   // Program timer compare for the maximum period, so it does NOT
   // flag an interrupt while this ISR is running - So changes from small
   // periods to big periods are respected and the timer does not reset to 0
   HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_TIMER_TYPE_MAX));
-  // timer_set_reload(STEP_TIMER_DEV, hal_timer_t(HAL_TIMER_TYPE_MAX));
 
   // checking power loss here because when no moves in block buffer, ISR will not
   // execute to endstop.update(), then we cannot check power loss there.
@@ -1511,10 +1509,13 @@ __start:
       }
     }
 
+    // TODO:
+    // 1) continue short pluse???
+    // 2) HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv)) or HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv) + cur_tick);
+    // 3) limite the continue pluses
     uint16_t cur_tick = HAL_timer_get_count(STEP_TIMER_NUM);
     if (step_time_dir.itv > (cur_tick + 4 * STEPPER_TIMER_TICKS_PER_US)) {
       HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv));
-      // goto __out_pluse_falling_edge;
       if (X_AXIS == fall_edge_axis) {
         PULSE_STOP(X);
       }
@@ -1527,11 +1528,9 @@ __start:
       else if(E_AXIS == fall_edge_axis) {
         PULSE_STOP(E);
       }
-      // goto __start;
     }
     else {
-      // recursion = true;
-      // goto __out_pluse_falling_edge;
+      // TODO: shoule clear the step timer??
       if (X_AXIS == fall_edge_axis) {
         PULSE_STOP(X);
       }
@@ -1544,6 +1543,7 @@ __start:
       else if(E_AXIS == fall_edge_axis) {
         PULSE_STOP(E);
       }
+      // timer_set_count(STEP_TIMER_DEV, hal_timer_t(0));
       goto __start;
     }
   }
@@ -1576,26 +1576,6 @@ __start:
     // WRITE(DEBUG_IO, 0);
     // #endif
   }
-
-// __out_pluse_falling_edge:
-
-//   if (X_AXIS == fall_edge_axis) {
-//     PULSE_STOP(X);
-//   }
-//   else if(Y_AXIS == fall_edge_axis) {
-//     PULSE_STOP(Y);
-//   }
-//   else if(Z_AXIS == fall_edge_axis) {
-//     PULSE_STOP(Z);
-//   }
-//   else if(E_AXIS == fall_edge_axis) {
-//     PULSE_STOP(E);
-//   }
-
-//   if (recursion) {
-//     HAL_timer_isr_prologue(STEP_TIMER_NUM);
-//     return ts_isr();
-//   }
 
   #ifdef DEBUG_IO
   WRITE(DEBUG_IO, 0);

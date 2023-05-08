@@ -22,11 +22,11 @@ void AxisInputShaper::init(int axis, MoveQueue *mq, InputShaperType type, float 
   this->backup_type = this->type = type;
   this->frequency = freq;
   this->zeta = zeta;
-  this->const_dist_hold = false;
   this->tgf_1.flag = this->tgf_2.flag = false;
   this->no_more_move = true;
   this->sync_pos = INVALID_SYNC_POS;
   this->file_pos = INVALID_FILE_POS;
+  this->g1.valid = this->g2.valid = false;
   shaper_init(this->type, this->frequency, this->zeta);
 }
 
@@ -217,7 +217,6 @@ void AxisInputShaper::shaper_init(InputShaperType type, float frequency, float z
 
 void AxisInputShaper::reset() {
   tgf_1.flag = tgf_2.flag = 0;
-  const_dist_hold = false;
   g1.valid = g2.valid = false;
   print_tick = 0;
   print_pos = 0.0;
@@ -243,8 +242,7 @@ bool AxisInputShaper::prepare(int m_idx) {
     print_pos = shaper_window.pos;
   }
 
-  // return getStep();
-  return genNextStep();
+  return getStep();
 }
 
 void AxisInputShaper::logShaperWindow() {
@@ -320,7 +318,6 @@ bool AxisInputShaper::alignToStartMove(int m_idx) {
 
   print_pos = shaper_window.lpos;
   print_tick = shaper_window.ltick;
-  have_gen_step_tick = false;
 
   return true;
 }

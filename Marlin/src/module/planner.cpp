@@ -1199,20 +1199,22 @@ bool Planner::genStep() {
   bool have_gen = 0;
   uint32_t gc = 0;
   StepInfo step_info;
-  while (!steps_seq.isFull() && (!axis_mng.reqAbort)) {
+  while (!steps_seq.isFull() && (!axis_mng.reqAbort) && (!steps_flag.isFull())) {
+  // while (!steps_seq.isFull() && (!axis_mng.reqAbort)) {
     if (axis_mng.getNextStep(step_info)) {
       // LOG_I("PUSH STIF: axis:%u itv:%.3f(ms) dir:%d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
       steps_seq.pushQueue(step_info.time_dir);
       have_gen = true;
       if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
-        if (!steps_flag.pushQueue(step_info.flag_data)) {
-          #ifdef SHAPER_LOG_ENABLE
-            break;
-          #else
-          LOG_E("### ERROR ###: steps flag have no space\r\n");
-          while(1);
-          #endif
-        }
+        steps_flag.pushQueue(step_info.flag_data);
+        // if (!steps_flag.pushQueue(step_info.flag_data)) {
+        //   #ifdef SHAPER_LOG_ENABLE
+        //     break;
+        //   #else
+        //   LOG_E("### ERROR ###: steps flag have no space\r\n");
+        //   while(1);
+        //   #endif
+        // }
       }
       gc++;
     }
@@ -1243,43 +1245,17 @@ bool Planner::genStep() {
 
 void Planner::shaped_loop() {
 
-  // static uint32_t continue_cnt = 0;
+  uint8_t block_num;
   bool has_gen_steps = false;
+  static block_t *bt = nullptr;
+
   planner_sch_info.entry_cnt++;
 
-  // Use the left tick of all axes's first plues's tick
   axis_mng.updateOldestPluesTick();
   move_queue.moveTailForward(axis_mng.oldest_plues_tick);
 
-  if (genStep()) has_gen_steps = true;
-  // genStep();
-  #if 0
-  struct step_seq_statistics_info sssi;
-  sssi.sys_time_ms = millis();
-  sssi.use_rate = steps_seq.useRate();
-  sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
-  bool has_gen_steps = genStep();
-  if (has_gen_steps) {
-    axis_mng.step_seq_statistics_rb.push(sssi);
-    sssi.sys_time_ms = millis();
-    sssi.use_rate = steps_seq.useRate();
-    sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
-    axis_mng.step_seq_statistics_rb.push(sssi);
-  }
-  else if (step_generating) {
-    struct motion_info mi;
-    mi.sys_time_ms = millis();
-    mi.tag[0] = 'P'; mi.tag[1] = 'L'; mi.tag[2] = 'N'; mi.tag[3] = '\0';
-    mi.block_count = planner.movesplanned();
-    mi.move_count = move_queue.getMoveSize();
-    mi.step_count = steps_seq.count();
-    mi.step_prepare_time = steps_seq.getBufMilliseconds();
-    mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
-    mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
-    mi.step_use_rate = steps_seq.useRate();
-    axis_mng.motion_info_rb.push(mi);
-  }
-  #endif
+  if (genStep())
+    has_gen_steps = true;
 
   axis_mng.loop();
 
@@ -1294,11 +1270,6 @@ void Planner::shaped_loop() {
     axis_mng.reqAbort = false;
   }
 
-  uint8_t block_num;
-  static block_t *bt = nullptr;
-
-  // xSemaphoreTake(plan_buffer_lock, portMAX_DELAY);
-  //if (pdPASS == xSemaphoreTake(plan_buffer_lock, 0)) {
   do {
     block_num = movesplanned();
     if (!bt && block_num) {
@@ -1307,31 +1278,25 @@ void Planner::shaped_loop() {
         // Steps will runout in a few millisecond, just take this block. If 5 millisecond can product new steps?
         if (steps_seq.getBufMilliseconds() < 20) {
           bt = get_current_block();
-          // LOG_I("0 ");
         }
       }
       // Just take this block as this block has been optimaled.
       else {
         bt = get_current_block();
-        // LOG_I("1 ");
       }
     }
 
     if (bt) {
-      // Use the left tick of all axes's first plues's tick
       axis_mng.updateOldestPluesTick();
       move_queue.moveTailForward(axis_mng.oldest_plues_tick);
+
       if (move_queue.genMoves(bt)) {
-        // LOG_I("2 ");
-        // release_current_block();
         discard_current_block();
         bt = nullptr;
         step_generating = true;
-        // move_queue.log();
         #ifdef SHAPER_LOG_ENABLE
         move_queue.log();
         #endif
-        // LOG_I(">");
       }
       else {
         break;
@@ -1340,46 +1305,31 @@ void Planner::shaped_loop() {
     else {
       break;
     }
-    // xSemaphoreGive(plan_buffer_lock);
   } while(steps_seq.getBufMilliseconds() > 5);
 
-  // struct step_seq_statistics_info sssi;
-  // sssi.sys_time_ms = millis();
-  // sssi.use_rate = steps_seq.useRate();
-  // sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
-  // bool has_gen_steps = genStep();
-  if (genStep()) has_gen_steps = true;
-  // genStep();
-  // if (has_gen_steps) {
-  //   axis_mng.step_seq_statistics_rb.push(sssi);
-  //   sssi.sys_time_ms = millis();
-  //   sssi.use_rate = steps_seq.useRate();
-  //   sssi.prepare_time_ms = steps_seq.getBufMilliseconds();
-  //   axis_mng.step_seq_statistics_rb.push(sssi);
-  // }
+  if (genStep())
+    has_gen_steps = true;
 
   #ifdef SHAPER_LOG_ENABLE
   StepInfo step_info;
-  // LOG_I("NO STEP GEN\r\n");
   // Consumption
   while(steps_seq.popQueue(&step_info.time_dir)) {
-    //if (step_info.time_dir.out_step) {
-      // LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
-    //}
+    if (step_info.time_dir.out_step) {
+      LOG_I("STIF: axis %d, itv %.3f(ms) dir %d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
+    }
     if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
       struct StepFlagData flag_data;
       if(steps_flag.popQueue(&flag_data)) {
-        // if (step_info.time_dir.sync)
-        //   LOG_I("Axis %d sync to %d\r\n", step_info.time_dir.axis, flag_data.sync_pos);
-        // if (step_info.time_dir.update_file_pos)
-        //   LOG_I("Axis %d file pso to %d\r\n", step_info.time_dir.axis, flag_data.file_pos);
+        if (step_info.time_dir.sync)
+          LOG_I("Axis %d sync to %d\r\n", step_info.time_dir.axis, flag_data.sync_pos);
+        if (step_info.time_dir.update_file_pos)
+          LOG_I("Axis %d file pso to %d\r\n", step_info.time_dir.axis, flag_data.file_pos);
       }
     }
   }
   #endif
 
   // No block, no activeDM and steps will runout, add a empty move
-
   if (axis_mng.endisable &&
       step_generating &&
       steps_seq.getBufMilliseconds() < 5) {
@@ -1400,29 +1350,10 @@ void Planner::shaped_loop() {
   }
 
   block_num = movesplanned();
-  // if (has_gen_steps && block_num && block_buffer_nonbusy != block_buffer_planned) {
-  //   // continue;
-  //   // LOG_I("+");
-  //   struct motion_info mi;
-  //   mi.sys_time_ms = millis();
-  //   mi.tag[0] = 'P'; mi.tag[1] = 'L'; mi.tag[2] = 'N'; mi.tag[3] = '\0';
-  //   mi.block_count = planner.movesplanned();
-  //   mi.block_planned_count = planner.optimally_planned_movesplanned();
-  //   mi.move_count = move_queue.getMoveSize();
-  //   mi.step_count = steps_seq.count();
-  //   mi.step_prepare_time = steps_seq.getBufMilliseconds();
-  //   mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
-  //   mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
-  //   mi.step_use_rate = steps_seq.useRate();
-  //   axis_mng.motion_info_rb.push(mi);
-  // }
-  // else {
   if (step_generating) {
     uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
     if (prepare_time_ms > 5) {
       NOMORE(prepare_time_ms, 50u);
-      // LOG_I("%u, ht %u, tt %u\n", prepare_time_ms/2, steps_seq.buf_tick_head, steps_seq.buf_tick_tail);
-      // LOG_I("%u\n", prepare_time_ms/2);
       vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/2));
     }
     else {
@@ -1432,24 +1363,14 @@ void Planner::shaped_loop() {
       }
       else {
         // Can not make any more steps just delay
-        // LOG_I("1\n");
         vTaskDelay(pdMS_TO_TICKS(1));
       }
     }
-    // LOG_I("%u\n", (uint32_t)steps_seq.getBufMilliseconds()/4);
-    // LOG_I("w");
-    // planner_sch_info.sleep_ms = (uint32_t) (steps_seq.getBufMilliseconds()/2);
-    // planner_sch_info.start_sleep_ms = millis();
-    // planner_sch_info.end_sleep_ms = planner_sch_info.start_sleep_ms + planner_sch_info.sleep_ms;
-    // vTaskDelay(pdMS_TO_TICKS(steps_seq.getBufMilliseconds()/4));
   }
   else {
-    // LOG_I(".");
-    // planner_sch_info.sleep_ms = 1;
-    // planner_sch_info.start_sleep_ms = millis();
-    // planner_sch_info.end_sleep_ms = planner_sch_info.start_sleep_ms + planner_sch_info.sleep_ms;
     vTaskDelay(pdMS_TO_TICKS(1));
   }
+
 }
 
 

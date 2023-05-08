@@ -7,11 +7,9 @@
 #include "CircularBuffer.h"
 
 
-#define CALC_OF_BINOMIAL(tgf)     ((tgf.coef_a * tgf.time_wind + tgf.coef_b) * tgf.time_wind)
-
-
-// #define LOG_MIDDLE_POS
 // #define SHAPER_LOG_ENABLE
+#define ENABLE_DIR_ELIMINATE
+// #define LOG_MIDDLE_POS
 // #define LOG_MOTION_INFO
 // #define LOG_PRINT_POS
 #define START_TICK                    (0xFAA2B57F)
@@ -20,10 +18,10 @@
 #define INVALID_FILE_POS              (0xFFFFFFFF)
 #define INVALID_SYNC_POS              (0x7FFFFFFF)
 #define EMPTY_MOVE_TIME_TICK          (200 * STEPPER_TIMER_TICKS_PER_MS)
-
 #define SP_DEFT_TYPE                  (InputShaperType::ei)
 #define SP_DEFT_FREQ                  (50)
 #define SP_DEFT_ZETA                  (0.1)
+#define CALC_OF_BINOMIAL(tgf)         ((tgf.coef_a * tgf.time_wind + tgf.coef_b) * tgf.time_wind)
 
 
 enum class InputShaperType : int
@@ -56,9 +54,9 @@ public:
 class CalcPluseInfo
 {
 public:
-  uint8_t m_idx;            // move index
-  float   A;                // Pluse's strenghth
-  int     T;                // Pluse's time, tick
+  uint8_t m_idx;              // move index
+  float   A;                  // Pluse's strenghth
+  int     T;                  // Pluse's time, tick
 };
 
 class ShaperWindow
@@ -127,6 +125,7 @@ struct motion_info {
   uint32_t    current_print_tick;
 };
 
+
 class AxisInputShaper
 {
 public:
@@ -137,9 +136,7 @@ public:
   uint32_t print_tick;
   uint32_t sync_tick;
   uint32_t block_sync_tick;
-  bool have_gen_step_tick;
 
-  bool const_dist_hold;
   struct genStep g1, g2;
 
   int sync_pos;
@@ -169,177 +166,19 @@ public:
   bool no_more_move;
 
 public:
-  AxisInputShaper(){};
   void init(int axis, MoveQueue *mq, InputShaperType type, float freq, float zeta, uint32_t s2t);
   void shaper_init(void);
   void shaper_init(InputShaperType type, float frequency, float zeta);
   void reset();
   void setConfig(int type, float frequency, float zeta);
-  bool prepare(int m_idx);
-
-  bool genNextStep() {
-    if (have_gen_step_tick) {
-      return true;
-    }
-    if (tgf_1.flag) {
-      if (getTimeFromTgf(tgf_1)){
-        return true;
-      }
-      else {
-        tgf_1.flag = 0;
-        return genNextStep();
-      }
-    }
-    else if(tgf_2.flag) {
-      if (getTimeFromTgf(tgf_2)){
-        return true;
-      }
-      else {
-        tgf_2.flag = 0;
-        return genNextStep();
-      }
-    }
-    else {
-      for (;;) {
-        if (moveShaperWindowToNext()) {
-          calcShaperWindowEndPosAndTime();
-          if (generateShapedFuncParams()) {
-            return genNextStep();
-          }
-          else {
-            // If generateShapedFuncParams return false, means no more motion
-            // print_tick and position update to shaper_window
-            print_tick = shaper_window.tick;
-            print_pos = shaper_window.pos;
-          }
-        }
-        else {
-          // A adding empty move may generating any steps as position keep
-          // the same. If a adding emtpy move doest not generate steps, than
-          // the print tick remain on the last move. This will cause
-          // planner::synchronization halt. So when moveShaperWindowToNext()
-          // return false, no more move, we need to update the print_tick.
-          // But not update the position
-          print_tick = shaper_window.tick;
-          return false;
-        }
-      }
-    }
-  }
-  #if 0
-  bool genNextStep(struct genStep &gs) {
-    if (tgf_1.flag) {
-      if (getTimeFromTgf(tgf_1)){
-        gs.dir = dir;
-        gs.tick = print_tick;
-        gs.file_pos = file_pos;
-        gs.sync_pos = sync_pos;
-        gs.valid = true;
-        gs.out_step = true;
-        // gs.pos = print_pos;
-        file_pos = INVALID_FILE_POS;
-        sync_pos = INVALID_SYNC_POS;
-        return true;
-      }
-      else {
-        tgf_1.flag = 0;
-        return genNextStep(gs);
-      }
-    }
-    else if(tgf_2.flag) {
-      if (getTimeFromTgf(tgf_2)){
-        gs.dir = dir;
-        gs.tick = print_tick;
-        gs.file_pos = file_pos;
-        gs.sync_pos = sync_pos;
-        gs.valid = true;
-        gs.out_step = true;
-        // gs.pos = print_pos;
-        file_pos = INVALID_FILE_POS;
-        sync_pos = INVALID_SYNC_POS;
-        return true;
-      }
-      else {
-        tgf_2.flag = 0;
-        return genNextStep(gs);
-      }
-    }
-    else {
-      for (;;) {
-        if (moveShaperWindowToNext()) {
-          calcShaperWindowEndPosAndTime();
-          if (generateShapedFuncParams()) {
-            return genNextStep(gs);
-          }
-          else {
-            // current print tick and positoin must update to shapper window
-            print_tick = shaper_window.tick;
-            print_pos = shaper_window.pos;
-          }
-        }
-        else {
-          gs.valid = false;
-          return false;
-        }
-      }
-    }
-  }
-  #endif
-
-  #if 0
-  bool getStep() {
-    if (g1.valid) {
-      return true;
-    }
-    else {
-      genNextStep(g1);
-      if (g1.valid) {
-        return true;
-      }
-      else {
-        return false;
-      }
-    }
-
-    if (g2.valid) {
-      g1 = g2;
-    }
-
-    if (!g1.valid) {
-      genNextStep(g1);
-      if (!g1.valid) {
-        return false;
-      }
-    }
-
-    // To here g1 has got step
-    const_dist_hold = false;
-    genNextStep(g2);
-
-    if (g1.valid && g2.valid && (g1.dir != g2.dir)) {
-      // if (!const_dist_hold) {
-      {
-        g1.out_step = g2.out_step = false;
-        #ifdef SHAPER_LOG_ENABLE
-        LOG_I("Abolish steps: axis %d, pos %f == %f\n", axis, g1.pos, g2.pos);
-        #endif
-      }
-      // else {
-      //   LOG_I("A const hold move segment, do NOT abolish steps when change dir\n");
-      // }
-    }
-
-    return true;
-  }
-  #endif
-
-  void logShaperWindow();
-  uint32_t getShaperWindown();
   void enable();
   void disable();
-
-private:
+  bool prepare(int m_idx);
+  bool alignToStartMove(int m_idx);
   void shiftPulses();
+  void logShaperWindow();
+  uint32_t getShaperWindown();
+
   float calcPosition(void) {
     float res = 0;
     for (int i = 0; i < shaper_window.pls_cnt; i++) {
@@ -349,7 +188,7 @@ private:
     }
     return res;
   }
-  bool alignToStartMove(int m_idx);
+
   void calcShaperWindowEndPosAndTime() {
     tgf_coef_a_sum = 0.0;
 
@@ -388,13 +227,9 @@ private:
       shaper_window.pos += delta_e;
     }
     #endif
-
-    #ifdef SHAPER_LOG_ENABLE
-    if (axis == 0) logShaperWindow();
-    #endif
   }
-  bool moveShaperWindowToNext() {
 
+  bool moveShaperWindowToNext() {
     shaper_window.lpos = shaper_window.pos;
     shaper_window.ltick = shaper_window.tick;
 
@@ -412,7 +247,6 @@ private:
           // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
           #endif
           if (!no_more_move) {
-            // LOG_I("Axis %u have no move, pluse move index %u, move head %u, move tail %u\n", axis, cls_p.m_idx, mq->move_head, mq->move_tail);
             no_more_move = true;
           }
           return false;
@@ -431,7 +265,6 @@ private:
         // LOG_I("Axis %d move queue is empty, cls_p_m_idx %d\r\n", axis, cls_p_m_idx);
         #endif
         if (!no_more_move) {
-          // LOG_I("Axis %u have no move, pluse move index %u, move head %u, move tail %u\n", axis, cls_p.m_idx, mq->move_head, mq->move_tail);
           no_more_move = true;
         }
         return false;
@@ -468,12 +301,12 @@ private:
       return true;
     }
 
-    // A E block sync for pause.
-    // bool ret = false;
-    // if (INVALID_FILE_POS != file_pos) {
-    //   tgf_1.flag |= TimeGenFunc::TGF_BLOCK_SYNC_FLAG;
-    //   ret = true;
-    // }
+    // A E block file positon sync.
+    bool ret = false;
+    if (INVALID_FILE_POS != file_pos) {
+      tgf_1.flag |= TimeGenFunc::TGF_BLOCK_SYNC_FLAG;
+      ret = true;
+    }
 
     float s1 = shaper_window.lpos;
     float s2 = shaper_window.pos;
@@ -484,18 +317,14 @@ private:
       #ifdef SHAPER_LOG_ENABLE
       LOG_I("ds %f, dt %f\r\n", ds, dt);
       #endif
-      if (dt > 5.0) // millisecond
-        const_dist_hold = true;
-      // return ret;
-      return false;
+      return ret;
     }
 
     tgf_1.coef_b = ds / dt - tgf_1.coef_a * dt;
     if (IS_ZERO(tgf_1.coef_a)) {
       if (IS_ZERO(tgf_1.coef_b)) {
-        LOG_E("#e# Remove a const tgf\r\n");
-        // return ret;
-        return false;
+        LOG_E("### error ###: Remove a const tgf\n");
+        return ret;
       }
       tgf_1.monotone = tgf_1.coef_b > 0.0 ? 1 : -1;
       tgf_1.start_tick = shaper_window.ltick;
@@ -573,22 +402,12 @@ private:
     if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
       tgf.flag = 0;
       print_tick = sync_tick;
-      have_gen_step_tick = true;
       return true;
     }
 
-    // if (tgf.flag & TimeGenFunc::TGF_BLOCK_SYNC_FLAG) {
-    //   tgf.flag &= ~(TimeGenFunc::TGF_BLOCK_SYNC_FLAG);   // just clear this flag
-    //   print_tick = block_sync_tick;
-    //   have_gen_step_tick = true;
-    //   return true;
-    // }
-
-    // float safe_strip = EPSILON;
     if (tgf.monotone < 0) {
       np = print_pos - mm_per_step;
       ns = print_pos - mm_per_half_step;
-      // if (ns < tgf.end_pos - EPSILON) {
       if (ns < tgf.end_pos) {
         #ifdef SHAPER_LOG_ENABLE
         LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
@@ -596,11 +415,9 @@ private:
         return false;
       }
     }
-    // else (tgf.monotone > 0) {
     else {
       np = print_pos + mm_per_step;
       ns = print_pos + mm_per_half_step;
-      // if (ns > tgf.end_pos + EPSILON) {
       if (ns > tgf.end_pos) {
         #ifdef SHAPER_LOG_ENABLE
         LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
@@ -608,32 +425,8 @@ private:
         return false;
       }
     }
-    // else {
-    //   return false;
-    // }
 
-    // float delta_dist = (float)(tgf.start_pos - ns);
-    // #ifdef SHAPER_LOG_ENABLE
-    // LOG_I("Axis %d delta_dist %f\r\n", axis, delta_dist);
-    // #endif
-    // float t_ms = tgf.dist2time(delta_dist);
-    // if (t_ms < 0.0) {
-    //   // When we can make sure this will NOT hanppen?
-    //   LOG_E("### ERROR ###: t_ms(%f) < 0.0)\r\n", t_ms);
-    //   t_ms = 0;
-    // }
-
-    #ifdef SHAPER_LOG_ENABLE
-    // uint32_t lt = print_tick;
-    #endif
     print_tick = tgf.start_tick + LROUND(tgf.dist2time(tgf.start_pos - ns) * ms2tick);
-    // if (!IS_ZERO(tgf.avg_itv)) {
-    //   print_tick += LROUND(tgf.avg_itv * ms2tick);
-    // }
-    // else {
-    //   print_tick = tgf.start_tick + LROUND(tgf.dist2time(tgf.start_pos - ns) * ms2tick);
-    // }
-
     dir = tgf.monotone;
     print_pos = np;
 
@@ -643,9 +436,109 @@ private:
     // LOG_I("last tick %u, cur tick %u, itv %.3fms, dir %d\n", lt, print_tick, itv, dir);
     #endif
 
-    have_gen_step_tick = true;
     return true;
-  };
+  }
+
+  bool genNextStep(struct genStep &gs) {
+    if (tgf_1.flag) {
+      if (getTimeFromTgf(tgf_1)){
+        gs.dir = dir;
+        gs.tick = print_tick;
+        gs.file_pos = file_pos;
+        gs.sync_pos = sync_pos;
+        gs.out_step = INVALID_SYNC_POS == gs.sync_pos ? true : false;
+        gs.valid = true;
+        return true;
+      }
+      else {
+        tgf_1.flag = 0;
+        return genNextStep(gs);
+      }
+    }
+    else if(tgf_2.flag) {
+      if (getTimeFromTgf(tgf_2)){
+        gs.dir = dir;
+        gs.tick = print_tick;
+        gs.file_pos = file_pos;
+        gs.sync_pos = sync_pos;
+        gs.out_step = INVALID_SYNC_POS == gs.sync_pos ? true : false;
+        gs.valid = true;
+        return true;
+      }
+      else {
+        tgf_2.flag = 0;
+        return genNextStep(gs);
+      }
+    }
+    else {
+      for (;;) {
+        if (moveShaperWindowToNext()) {
+          calcShaperWindowEndPosAndTime();
+          if (generateShapedFuncParams()) {
+            return genNextStep(gs);
+          }
+          else {
+            // If generateShapedFuncParams return false, means no more motion
+            // print_tick and position update to shaper_window
+            print_tick = shaper_window.tick;
+            print_pos = shaper_window.pos;
+          }
+        }
+        else {
+          // A adding empty move may generating any steps as position keep
+          // the same. If a adding emtpy move doest not generate steps, than
+          // the print tick remain on the last move. This will cause
+          // planner::synchronization halt. So when moveShaperWindowToNext()
+          // return false, no more move, we need to update the print_tick.
+          // But not update the position
+          print_tick = shaper_window.tick;
+          gs.valid = false;
+          return false;
+        }
+      }
+    }
+  }
+
+  bool getStep(void) {
+    if (g1.valid) {
+      return true;
+    }
+    #ifndef ENABLE_DIR_ELIMINATE
+    else {
+      genNextStep(g1);
+      if (g1.valid) {
+        return true;
+      }
+      else {
+        return false;
+      }
+    }
+    #endif
+
+    if (g2.valid) {
+      g1 = g2;
+    }
+
+    if (!g1.valid) {
+      genNextStep(g1);
+      if (!g1.valid) {
+        return false;
+      }
+    }
+
+    // To here g1 has got step
+    genNextStep(g2);
+
+    if (g1.valid && g2.valid && (g1.dir != g2.dir) && (g1.out_step && g2.out_step)) {
+      g1.out_step = g2.out_step = false;
+      #ifdef SHAPER_LOG_ENABLE
+      LOG_I("Abolish steps: axis %d\n", axis);
+      #endif
+    }
+
+    return true;
+  }
+
 };
 
 class AxisMng
@@ -664,121 +557,16 @@ public:
   void log_xy_shpaer(void);
   bool prepare(uint8_t m_idx);
   void logShaperWindows();
-
-  bool getNextStep(StepInfo &step_info) {
-    AxisInputShaper *dm = findNearestPrintTickAxis();
-    if (dm) {
-      if (PENDING(dm->print_tick, cur_print_tick)) {
-        LOG_E("### ERROR ####: cur print tick(%d) < last print tick %d\r\n", dm->axis, (cur_print_tick - dm->print_tick));
-        dm->print_tick = cur_print_tick;
-      }
-
-      // Set from dm
-      step_info.time_dir.axis = dm->axis;
-      step_info.time_dir.dir = dm->dir > 0 ? 1 : 0;
-      step_info.time_dir.move_bits = 1<<dm->axis;
-      step_info.time_dir.itv = (uint16_t)(dm->print_tick - cur_print_tick);
-      cur_print_tick = dm->print_tick;
-
-      // A normal step output, update cur_print_tick;
-      if (INVALID_SYNC_POS == dm->sync_pos) {
-        step_info.time_dir.out_step = 1;
-        step_info.time_dir.sync = 0;
-      }
-      // G92 sync block
-      else {
-        step_info.time_dir.out_step = 0;
-        step_info.time_dir.sync = 1;
-        step_info.flag_data.sync_pos = dm->sync_pos;
-      }
-
-      // FILE POSITION
-      step_info.time_dir.update_file_pos = 0;
-      if (INVALID_FILE_POS != dm->file_pos) {
-        step_info.time_dir.update_file_pos = 1;
-        step_info.flag_data.file_pos = dm->file_pos;
-      }
-
-      // Clear dm's data
-      dm->have_gen_step_tick = false;
-      dm->sync_pos = INVALID_SYNC_POS;
-      dm->file_pos = INVALID_FILE_POS;
-
-      return true;
-    }
-    else {
-      return false;
-    }
-  }
-
-  #if 0
-  bool getNextStep(StepInfo &step_info) {
-    AxisInputShaper *dm = findNearestPrintTickAxis();
-    if (dm) {
-      if (PENDING(dm->g1.tick, cur_print_tick)) {
-        LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->g1.tick));
-        dm->g1.tick = cur_print_tick;
-      }
-      if (!dm->g1.valid) {
-        LOG_E("### ERROR ####: got a in-have gen step tick\r\n");
-      }
-      // step time
-      step_info.time_dir.itv = (uint16_t)(dm->g1.tick - cur_print_tick);
-      step_info.time_dir.dir = dm->g1.dir > 0 ? 1 : 0;
-      step_info.time_dir.out_step = dm->g1.out_step;
-      step_info.time_dir.move_bits = 1<<dm->axis;
-      step_info.time_dir.axis = dm->axis;
-      // step flag data, sync and block position
-      step_info.time_dir.sync = 0;
-      if (INVALID_SYNC_POS != dm->g1.sync_pos) {
-        step_info.time_dir.sync = 1;
-        step_info.flag_data.sync_pos = dm->g1.sync_pos;
-      }
-      step_info.time_dir.update_file_pos = 0;
-      if (E_AXIS == dm->axis && INVALID_FILE_POS != dm->g1.file_pos) {
-        step_info.time_dir.update_file_pos = 1;
-        step_info.flag_data.file_pos = dm->g1.file_pos;
-      }
-      cur_print_tick = dm->g1.tick;
-      dm->g1.valid = false;
-      return true;
-    }
-    else {
-      return false;
-    }
-  }
-  #endif
   bool tgfValid();
   void abort();
   void updateOldestPluesTick();
+  bool req_endisable_shaper(bool endisble);
+  bool req_update_shaper(void);
+  bool req_reset_shaper(void);
 
   AxisInputShaper *findNearestPrintTickAxis() {
     AxisInputShaper *nearest_axis = nullptr;
-    LOOP_SHAPER_AXES(i) {
-      axes[i].genNextStep();
-      if (axes[i].have_gen_step_tick) {
-        if (nearest_axis) {
-          if (PENDING(axes[i].print_tick, nearest_axis->print_tick)) {
-            nearest_axis = &axes[i];
-          }
-        }
-        else {
-          nearest_axis = &axes[i];
-        }
-      }
-    }
 
-    if (nearest_axis && ELAPSED(nearest_axis->print_tick, mq->can_print_head_tick)) {
-      // LOG_I("Axis %d tick must wait for move's gen step tick\r\n", nearest_axis->axis, nearest_axis->axis);
-      nearest_axis = nullptr;
-    }
-
-    return nearest_axis;
-  }
-
-  #if 0
-  AxisInputShaper *findNearestPrintTickAxis() {
-    AxisInputShaper *nearest_axis = nullptr;
     LOOP_SHAPER_AXES(i) {
       if (axes[i].getStep()) {
         if (nearest_axis) {
@@ -791,17 +579,53 @@ public:
         }
       }
     }
+
     if (nearest_axis && ELAPSED(nearest_axis->g1.tick, mq->can_print_head_tick)) {
-      // LOG_I("ActiveDM(%d)'s tick must wait for move's gen step tick\r\n", nearest_axis->axis);
       nearest_axis = nullptr;
     }
+
     return nearest_axis;
   }
-  #endif
 
-  bool req_endisable_shaper(bool endisble);
-  bool req_update_shaper(void);
-  bool req_reset_shaper(void);
+  bool getNextStep(StepInfo &step_info) {
+    AxisInputShaper *dm = findNearestPrintTickAxis();
+    if (dm) {
+      if (PENDING(dm->g1.tick, cur_print_tick)) {
+        LOG_E("### ERROR ####: cur print tick < last print tick %d\r\n", int(cur_print_tick - dm->g1.tick));
+        dm->g1.tick = cur_print_tick;
+      }
+
+      // Pluse
+      step_info.time_dir.axis = dm->axis;
+      step_info.time_dir.itv = (uint16_t)(dm->g1.tick - cur_print_tick);
+      step_info.time_dir.dir = dm->g1.dir > 0 ? 1 : 0;
+      step_info.time_dir.out_step = dm->g1.out_step;
+      step_info.time_dir.move_bits = 1<<dm->axis;
+
+      // Position sync
+      step_info.time_dir.sync = 0;
+      if (INVALID_SYNC_POS != dm->g1.sync_pos) {
+        step_info.time_dir.sync = 1;
+        step_info.flag_data.sync_pos = dm->g1.sync_pos;
+      }
+
+      // Block sync
+      step_info.time_dir.update_file_pos = 0;
+      if (INVALID_FILE_POS != dm->g1.file_pos) {
+        step_info.time_dir.update_file_pos = 1;
+        step_info.flag_data.file_pos = dm->g1.file_pos;
+      }
+
+      // Update and clear
+      cur_print_tick = dm->g1.tick;
+      dm->g1.valid = false;
+
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
 
 public:
   bool is_init = false;

@@ -35,8 +35,8 @@ void Move::log(uint8_t idx) {
   LOG_I("acc mm/msec^2: %f\r\n", accelerate);
   LOG_I("start_v steps/ms: %f\r\n", start_v);
   LOG_I("end_v steps/ms: %f\r\n", end_v);
-  LOG_I("start tick: %d\r\n", start_tick);
-  LOG_I("end tick: %d\r\n", end_tick);
+  LOG_I("start tick: %u\r\n", start_tick);
+  LOG_I("end tick: %u\r\n", end_tick);
   LOG_I("start pos: %f, %f, %f, %f\r\n", start_pos[0], start_pos[1], start_pos[2], start_pos[3]);
   LOG_I("end pos: %f, %f, %f, %f\r\n", end_pos[0], end_pos[1], end_pos[2], end_pos[3]);
   // LOG_I("start pos: %u, %u, %u, %u\r\n", start_pos[0], start_pos[1], start_pos[2], start_pos[3]);
