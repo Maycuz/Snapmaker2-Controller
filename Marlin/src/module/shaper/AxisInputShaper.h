@@ -22,6 +22,8 @@
 #define SP_DEFT_FREQ                  (50)
 #define SP_DEFT_ZETA                  (0.1)
 #define CALC_OF_BINOMIAL(tgf)         ((tgf.coef_a * tgf.time_wind + tgf.coef_b) * tgf.time_wind)
+#define E_RESET_VALUE                 (50.0)
+#define B_RESET_VALUE                 (50.0)
 
 
 enum class InputShaperType : int
@@ -182,47 +184,7 @@ public:
     return res;
   }
 
-  void calcShaperWindowEndPosAndTime() {
-    tgf_coef_a_sum = 0.0;
-
-    // Fine next time closest pluse and calculate the shaper windown's time spand
-    shaper_window.wind_tick = 0xFFFFFFFF;
-    for (int i = 0; i < shaper_window.pls_cnt; i++) {
-      CalcPluseInfo &p = shaper_window.pluse[i];
-      uint32_t pluse_tick = p.T + shaper_window.tick;
-      uint32_t min_next_time = mq->moves[p.m_idx].end_tick - pluse_tick;
-      if (min_next_time < shaper_window.wind_tick) {
-        shaper_window.wind_tick = min_next_time;
-        shaper_window.t_cls_pls = i;
-      }
-      tgf_coef_a_sum += 0.5 * mq->moves[p.m_idx].axis_r[axis] * p.A * mq->moves[p.m_idx].accelerate;
-    }
-
-    #ifdef SHAPER_LOG_ENABLE
-    LOG_I("Axis %d cloesest move index update to %d in plues\r\n", axis, shaper_window.pluse[shaper_window.t_cls_pls].m_idx, shaper_window.t_cls_pls);
-    #endif
-
-    // Update shaper window time and calculate shaper windown's position.
-    shaper_window.tick += shaper_window.wind_tick;
-    shaper_window.pos = calcPosition();
-
-    #if ENABLED(LIN_ADVANCE)
-    if (E_AXIS == axis) {
-      float eda = 0.0;
-      Move *move = &(mq->moves[shaper_window.pluse[0].m_idx]);
-      if (move->use_advance) {
-        eda = move->delta_v * ((float)shaper_window.wind_tick/ms2tick) * move->axis_r[axis];
-        #ifdef SHAPER_LOG_ENABLE
-        LOG_I("delta_v %f delta_e %d, Eda %d\r\n", move->delta_v, delta_e, eda);
-        #endif
-      }
-      delta_e += eda;
-      shaper_window.pos += delta_e;
-    }
-    #endif
-  }
-
-  bool moveShaperWindowToNext() {
+bool moveShaperWindowToNext() {
     shaper_window.lpos = shaper_window.pos;
     shaper_window.ltick = shaper_window.tick;
 
@@ -278,9 +240,63 @@ public:
         file_pos = mq->moves[cls_p.m_idx].file_pos;
         block_sync_tick = mq->moves[cls_p_m_idx].start_tick;
       }
+
+      if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_RESET_E_SHAPER_POSITION) {
+        shaper_window.lpos = 0.0;
+        print_pos = 0.0;
+        LOG_I("Shaper E position reset\n");
+      }
+    }
+
+    if (axis == B_AXIS) {
+      if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_RESET_B_SHAPER_POSITION) {
+        shaper_window.lpos = 0.0;
+        print_pos = 0.0;
+        LOG_I("Shaper B position reset\n");
+      }
     }
 
     return true;
+  }
+
+  void calcShaperWindowEndPosAndTime() {
+    tgf_coef_a_sum = 0.0;
+
+    // Fine next time closest pluse and calculate the shaper windown's time spand
+    shaper_window.wind_tick = 0xFFFFFFFF;
+    for (int i = 0; i < shaper_window.pls_cnt; i++) {
+      CalcPluseInfo &p = shaper_window.pluse[i];
+      uint32_t pluse_tick = p.T + shaper_window.tick;
+      uint32_t min_next_time = mq->moves[p.m_idx].end_tick - pluse_tick;
+      if (min_next_time < shaper_window.wind_tick) {
+        shaper_window.wind_tick = min_next_time;
+        shaper_window.t_cls_pls = i;
+      }
+      tgf_coef_a_sum += 0.5 * mq->moves[p.m_idx].axis_r[axis] * p.A * mq->moves[p.m_idx].accelerate;
+    }
+
+    #ifdef SHAPER_LOG_ENABLE
+    LOG_I("Axis %d cloesest move index update to %d in plues\r\n", axis, shaper_window.pluse[shaper_window.t_cls_pls].m_idx, shaper_window.t_cls_pls);
+    #endif
+
+    // Update shaper window time and calculate shaper windown's position.
+    shaper_window.tick += shaper_window.wind_tick;
+    shaper_window.pos = calcPosition();
+
+    #if ENABLED(LIN_ADVANCE)
+    if (E_AXIS == axis) {
+      float eda = 0.0;
+      Move *move = &(mq->moves[shaper_window.pluse[0].m_idx]);
+      if (move->use_advance) {
+        eda = move->delta_v * ((float)shaper_window.wind_tick/ms2tick) * move->axis_r[axis];
+        #ifdef SHAPER_LOG_ENABLE
+        LOG_I("delta_v %f delta_e %d, Eda %d\r\n", move->delta_v, delta_e, eda);
+        #endif
+      }
+      delta_e += eda;
+      shaper_window.pos += delta_e;
+    }
+    #endif
   }
 
   bool generateShapedFuncParams() {

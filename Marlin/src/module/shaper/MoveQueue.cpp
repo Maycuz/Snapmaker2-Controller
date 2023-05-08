@@ -192,6 +192,18 @@ Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float dis
   moves_head_tick = move.end_tick;
   can_print_head_tick = moves_head_tick - max_shape_window_right_delta_tick ;
 
+  if (req_E_reset) {
+    last_mq_pos[E_AXIS] = 0.0;
+    move.flag |= BLOCK_FLAG_RESET_E_SHAPER_POSITION;
+    req_E_reset = false;
+  }
+
+  if (req_B_reset) {
+    last_mq_pos[B_AXIS] = 0.0;
+    move.flag |= BLOCK_FLAG_RESET_B_SHAPER_POSITION;
+    req_B_reset = false;
+  }
+
   for (int i = 0; i < NUM_AXIS; ++i) {
     move.start_pos[i] = last_mq_pos[i];
     last_mq_pos[i] = move.end_pos[i] = move.start_pos[i] + move.distance * move.axis_r[i];
@@ -211,7 +223,7 @@ void MoveQueue::addEmptyMove(uint32_t time) {
 
 void MoveQueue::addSyncMove(int32_t *sync_pos) {
   Move *am = addMove(0, 0, 0, 0, ZERO_AXIS_R, 0);
-  am->flag = BLOCK_FLAG_SYNC_POSITION;
+  am->flag |= BLOCK_FLAG_SYNC_POSITION;
   LOOP_SHAPER_AXES(i) {
     am->sync_target_pos[i] = sync_pos[i];
   }
@@ -235,6 +247,16 @@ void MoveQueue::moveTailForward(uint32_t print_tick) {
   }
 }
 
+void MoveQueue::reqResetEAxis(void) {
+  if (!req_E_reset)
+    req_E_reset = true;
+}
+
+void MoveQueue::reqResetBAxis(void) {
+  if (!req_B_reset)
+    req_B_reset = true;
+}
+
 bool MoveQueue::haveMotion() {
   if (!is_init)
     return false;
@@ -247,6 +269,7 @@ bool MoveQueue::haveMotion() {
     if (moves[move_tail].start_pos[i] != moves[h_idx].end_pos[i])
       return true;
   }
+
   return false;
 }
 

@@ -1180,9 +1180,7 @@ void Planner::recalculate() {
 
 
 bool Planner::has_motion_queue() {
-
   if (xTaskGetCurrentTaskHandle() == sm2_handle->planner) {
-    // First update move
     axis_mng.updateOldestPluesTick();
     move_queue.moveTailForward(axis_mng.oldest_plues_tick);
   }

@@ -366,6 +366,14 @@ void AxisMng::loop(void) {
       req_reset_shaper_flag = false;
   }
 
+  if (fabs(mq->last_mq_pos[E_AXIS]) > (E_RESET_VALUE * planner.settings.axis_steps_per_mm[E_AXIS])) {
+    mq->reqResetEAxis();
+  }
+
+  if (fabs(mq->last_mq_pos[B_AXIS]) > (B_RESET_VALUE * planner.settings.axis_steps_per_mm[B_AXIS])) {
+    mq->reqResetBAxis();
+  }
+
 }
 
 bool AxisMng::planner_sync(void) {
@@ -554,7 +562,7 @@ bool AxisMng::tgfValid() {
     return false;
 
   LOOP_SHAPER_AXES(i) {
-    if (axes[i].tgf_1.flag || axes[i].tgf_2.flag)
+    if (axes[i].g1.valid)
       return true;
   }
 

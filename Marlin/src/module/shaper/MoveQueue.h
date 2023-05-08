@@ -49,19 +49,21 @@ public:
   FORCE_INLINE bool isBetween(const uint8_t m_index) { return (m_index != move_head) && (MOVE_MOD(move_head - m_index) + MOVE_MOD(m_index - move_tail)) == MOVE_MOD(move_head - move_tail);};
   FORCE_INLINE int getMoveSize() { return MOVE_MOD(move_head - move_tail); };
   FORCE_INLINE int getFreeMoveSize() { return MOVE_SIZE - 1 - getMoveSize(); }
-
-  void reset();
-  void addEmptyMove(uint32_t time);
-  void addSyncMove(int32_t sync_pos[]);
-  Move *addMove(float sv, float ev, float acc, float dist, float axis_r[], uint32_t t);
-  bool genMoves(block_t* block);
   FORCE_INLINE float getAxisPosition(int move_index, int axis, uint32_t tick) {
     Move &move = moves[move_index];
     float axis_r = move.axis_r[axis];
     float delta_time = (float)(tick - move.start_tick) / ms2tick;
     return move.start_pos[axis] + (move.start_v + 0.5f * move.accelerate * delta_time) * delta_time * axis_r;
   };
+
+  void reset();
+  void addEmptyMove(uint32_t time);
+  void addSyncMove(int32_t sync_pos[]);
+  Move *addMove(float sv, float ev, float acc, float dist, float axis_r[], uint32_t t);
+  bool genMoves(block_t* block);
   void moveTailForward(uint32_t print_tick);
+  void reqResetEAxis(void);
+  void reqResetBAxis(void);
   bool haveMotion();
   float spandTimeWindow();
   void log();
@@ -79,6 +81,8 @@ public:
   uint32_t max_shape_window_tick;
   uint32_t max_shape_window_right_delta_tick;
   uint32_t file_pos;
+  bool req_E_reset;
+  bool req_B_reset;
 };
 
 
