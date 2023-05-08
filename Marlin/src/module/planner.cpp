@@ -1330,9 +1330,11 @@ void Planner::shaped_loop() {
   // No block, no activeDM and steps will runout, add a empty move
   if (axis_mng.endisable &&
       step_generating &&
-      steps_seq.getBufMilliseconds() < 5) {
-
+      steps_seq.getBufMilliseconds() < 5)
+  {
     while(move_queue.getFreeMoveSize() < 1) {
+      axis_mng.updateOldestPluesTick();
+      move_queue.moveTailForward(axis_mng.oldest_plues_tick);
       genStep();
       LOG_I("wait for move room for adding a empty move\n");
     }

@@ -48,6 +48,8 @@ void MoveQueue::reset() {
   move_head = 0;
   moves_head_tick = START_TICK;
   moves_tail_tick = START_TICK;
+  req_E_reset = false;
+  req_B_reset = false;
   LOOP_SHAPER_AXES(i) {
     last_mq_pos[i] = 0;
   }

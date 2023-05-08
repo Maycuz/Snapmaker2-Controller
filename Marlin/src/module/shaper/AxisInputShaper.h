@@ -229,7 +229,7 @@ bool moveShaperWindowToNext() {
     no_more_move = false;
     cls_p.m_idx = cls_p_m_idx;
 
-    if (axis == E_AXIS) {
+    if (E_AXIS == axis) {
       // G92 sync
       if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_SYNC_POSITION) {
         sync_pos = mq->moves[cls_p_m_idx].sync_target_pos[axis];
@@ -244,11 +244,12 @@ bool moveShaperWindowToNext() {
       if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_RESET_E_SHAPER_POSITION) {
         shaper_window.lpos = 0.0;
         print_pos = 0.0;
+        delta_e = 0.0;
         LOG_I("Shaper E position reset\n");
       }
     }
 
-    if (axis == B_AXIS) {
+    if (B_AXIS == axis) {
       if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_RESET_B_SHAPER_POSITION) {
         shaper_window.lpos = 0.0;
         print_pos = 0.0;
@@ -300,7 +301,6 @@ bool moveShaperWindowToNext() {
   }
 
   bool generateShapedFuncParams() {
-
     tgf_1.flag = tgf_2.flag = 0;
     tgf_1.coef_a = tgf_coef_a_sum;
 
@@ -310,7 +310,7 @@ bool moveShaperWindowToNext() {
       return true;
     }
 
-    // A E block file positon sync.
+    // A block file positon sync.
     bool ret = false;
     if (INVALID_FILE_POS != file_pos) {
       tgf_1.flag |= TimeGenFunc::TGF_BLOCK_SYNC_FLAG;
