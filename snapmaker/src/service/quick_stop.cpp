@@ -106,7 +106,12 @@ bool QuickStopService::CheckInISR(block_t *blk) {
    */
   case QS_STA_TRIGGERED:
     axis_mng.reqAbort = true;
-    state_ = QS_STA_WAIT_STOP;
+    if (QS_SOURCE_POWER_LOSS == source_) {
+      state_ = QS_STA_EARLY_SAVE;
+    }
+    else {
+      state_ = QS_STA_WAIT_STOP;
+    }
     break;
 
   case QS_STA_WAIT_STOP:
