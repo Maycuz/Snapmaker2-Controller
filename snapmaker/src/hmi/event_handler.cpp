@@ -468,7 +468,7 @@ static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
     laser->TurnOn();
   }
 
-  LOG_I("gcode line: %u\n", start_line);
+  // LOG_I("gcode line: %u\n", start_line);
 
   return E_SUCCESS;
 }
