@@ -275,7 +275,7 @@ class Planner {
                             block_buffer_planned,   // Index of the optimally planned block
                             block_buffer_tail;      // Index of the busy block, if any
     static uint16_t cleaning_buffer_counter;        // A counter to disable queuing of blocks
-    static uint8_t delay_before_delivering;         // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
+    static uint16_t delay_before_delivering;         // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
     static bool step_generating;
 
     #if ENABLED(DISTINCT_E_FACTORS)
@@ -296,6 +296,8 @@ class Planner {
     static planner_settings_t settings;
 
     static laser_state_t laser_inline;
+
+    static bool req_clear_block_flag;
 
     static uint32_t max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2
     static float steps_to_mm[X_TO_EN];          // Millimeters per step
@@ -351,6 +353,8 @@ class Planner {
       static bool abort_on_endstop_hit;
     #endif
 
+    static bool req_clear_block();
+    static void do_block_clear();
     static bool has_motion_queue();
     static void shaped_loop();
     static bool genStep();

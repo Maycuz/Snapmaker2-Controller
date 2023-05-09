@@ -192,8 +192,6 @@ bool moveShaperWindowToNext() {
     CalcPluseInfo &cls_p = shaper_window.pluse[shaper_window.t_cls_pls];
     uint8_t cls_p_m_idx = mq->nextMoveIndex(cls_p.m_idx);
 
-    sync_pos = INVALID_SYNC_POS;
-    file_pos = INVALID_FILE_POS;
     if (InputShaperType::none != type) {
       // Shaper axis do NOT support sync in moving as position is not in the correction. Skip the sync move
       do {
@@ -313,7 +311,7 @@ bool moveShaperWindowToNext() {
     // A block file positon sync.
     bool ret = false;
     if (INVALID_FILE_POS != file_pos) {
-      tgf_1.flag |= TimeGenFunc::TGF_BLOCK_SYNC_FLAG;
+      tgf_1.flag |= TimeGenFunc::TGF_FILE_POS_SYNC_FLAG;
       ret = true;
     }
 
@@ -341,7 +339,7 @@ bool moveShaperWindowToNext() {
       tgf_1.time_wind = dt;
       tgf_1.start_pos = s1;
       tgf_1.end_pos = s2;
-      tgf_1.flag = TimeGenFunc::TGF_VALID_FLAG;
+      tgf_1.flag |= TimeGenFunc::TGF_STEP_FLAG;
       #ifdef SHAPER_LOG_ENABLE
       tgf_1.log(1);
       #endif
@@ -364,7 +362,7 @@ bool moveShaperWindowToNext() {
         if(axis == X_AXIS)
           axis_mng.tgf_middle_pos_rb.push(fabs(middle_p));
         #endif
-        tgf_1.flag = TimeGenFunc::TGF_VALID_FLAG;
+        tgf_1.flag |= TimeGenFunc::TGF_STEP_FLAG;
         #ifdef SHAPER_LOG_ENABLE
         tgf_1.log(1);
         #endif
@@ -377,7 +375,7 @@ bool moveShaperWindowToNext() {
         tgf_2.time_wind = dt;
         tgf_2.start_pos = s1;                           // Use the same start position
         tgf_2.end_pos = s2;
-        tgf_2.flag = TimeGenFunc::TGF_VALID_FLAG;
+        tgf_2.flag |= TimeGenFunc::TGF_STEP_FLAG;
         #ifdef SHAPER_LOG_ENABLE
         tgf_2.log(2);
         #endif
@@ -389,7 +387,7 @@ bool moveShaperWindowToNext() {
         tgf_1.time_wind = dt;
         tgf_1.start_pos = s1;
         tgf_1.end_pos = s2;
-        tgf_1.flag = TimeGenFunc::TGF_VALID_FLAG;
+        tgf_1.flag |= TimeGenFunc::TGF_STEP_FLAG;
         #ifdef SHAPER_LOG_ENABLE
         tgf_1.log(1);
         #endif
@@ -404,80 +402,88 @@ bool moveShaperWindowToNext() {
     return true;
   }
 
-  FORCE_INLINE bool getTimeFromTgf(TimeGenFunc &tgf) {
-    float np;
-    float ns;
+  FORCE_INLINE bool getTimeFromTgf(TimeGenFunc &tgf, struct genStep &gs) {
+    gs.valid = false;
+    gs.file_pos = file_pos;
+    gs.sync_pos = sync_pos;
 
+    // A sync, no step output
     if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
-      tgf.flag = 0;
-      print_tick = sync_tick;
+      gs.tick = sync_tick;
+      gs.out_step = false;
+      gs.valid = true;
+      sync_pos = INVALID_SYNC_POS;
+      tgf.flag &= ~(TimeGenFunc::TGF_SYNC_FLAG);
       return true;
     }
 
-    if (tgf.monotone < 0) {
-      np = print_pos - mm_per_step;
-      ns = print_pos - mm_per_half_step;
-      if (ns < tgf.end_pos) {
-        #ifdef SHAPER_LOG_ENABLE
-        LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
-        #endif
-        return false;
-      }
-    }
-    else {
-      np = print_pos + mm_per_step;
-      ns = print_pos + mm_per_half_step;
-      if (ns > tgf.end_pos) {
-        #ifdef SHAPER_LOG_ENABLE
-        LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
-        #endif
-        return false;
-      }
+    // A file position sync
+    if (tgf.flag & TimeGenFunc::TGF_FILE_POS_SYNC_FLAG) {
+      gs.tick = block_sync_tick;
+      gs.out_step = false;
+      gs.valid = true;
+      file_pos = INVALID_FILE_POS;
+      tgf.flag &= ~(TimeGenFunc::TGF_FILE_POS_SYNC_FLAG);
     }
 
-    print_tick = tgf.start_tick + LROUND(tgf.dist2time(tgf.start_pos - ns) * ms2tick);
-    dir = tgf.monotone;
-    print_pos = np;
+    // A steps output
+    if (tgf.flag & TimeGenFunc::TGF_STEP_FLAG) {
+      float np;
+      float ns;
+      if (tgf.monotone < 0) {
+        np = print_pos - mm_per_step;
+        ns = print_pos - mm_per_half_step;
+        if (ns < tgf.end_pos) {
+          #ifdef SHAPER_LOG_ENABLE
+          LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
+          #endif
+          tgf.flag &= ~(TimeGenFunc::TGF_STEP_FLAG);
+          return gs.valid;
+        }
+      }
+      else {
+        np = print_pos + mm_per_step;
+        ns = print_pos + mm_per_half_step;
+        if (ns > tgf.end_pos) {
+          #ifdef SHAPER_LOG_ENABLE
+          LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
+          #endif
+          tgf.flag &= ~(TimeGenFunc::TGF_STEP_FLAG);
+          return gs.valid;
+        }
+      }
 
-    #ifdef SHAPER_LOG_ENABLE
-    // float itv = ((float)print_tick - lt) / ms2tick;
-    // LOG_I("Axis %d, print_pos %.1f, sample_pos %.1f, start_tick %u, ", axis, np, ns, tgf.start_tick);
-    // LOG_I("last tick %u, cur tick %u, itv %.3fms, dir %d\n", lt, print_tick, itv, dir);
-    #endif
+      print_tick = tgf.start_tick + LROUND(tgf.dist2time(tgf.start_pos - ns) * ms2tick);
+      dir = tgf.monotone;
+      print_pos = np;
 
-    return true;
+      #ifdef SHAPER_LOG_ENABLE
+      // float itv = ((float)print_tick - lt) / ms2tick;
+      // LOG_I("Axis %d, print_pos %.1f, sample_pos %.1f, start_tick %u, ", axis, np, ns, tgf.start_tick);
+      // LOG_I("last tick %u, cur tick %u, itv %.3fms, dir %d\n", lt, print_tick, itv, dir);
+      #endif
+
+      gs.dir = dir;
+      gs.tick = print_tick;
+      gs.out_step = true;
+      gs.valid = true;
+    }
+
+    return gs.valid;
   }
 
   bool genNextStep(struct genStep &gs) {
-    if (tgf_1.flag) {
-      if (getTimeFromTgf(tgf_1)){
-        gs.dir = dir;
-        gs.tick = print_tick;
-        gs.file_pos = file_pos;
-        gs.sync_pos = sync_pos;
-        gs.out_step = INVALID_SYNC_POS == gs.sync_pos ? true : false;
-        gs.valid = true;
+    if (tgf_1.flag){
+      if (getTimeFromTgf(tgf_1, gs))
         return true;
-      }
-      else {
-        tgf_1.flag = 0;
+      else
         return genNextStep(gs);
-      }
     }
     else if(tgf_2.flag) {
-      if (getTimeFromTgf(tgf_2)){
-        gs.dir = dir;
-        gs.tick = print_tick;
-        gs.file_pos = file_pos;
-        gs.sync_pos = sync_pos;
-        gs.out_step = INVALID_SYNC_POS == gs.sync_pos ? true : false;
-        gs.valid = true;
+      if (getTimeFromTgf(tgf_2, gs))
         return true;
-      }
-      else {
-        tgf_2.flag = 0;
+      else
         return genNextStep(gs);
-      }
     }
     else {
       for (;;) {

@@ -115,43 +115,46 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     break;
 
   case QS_STA_EARLY_SAVE:
+  {
     // need sync count position from stepper to planner
     // otherwise, it may park in unexpected position
     current_position[E_AXIS] = planner.get_axis_position_mm(E_AXIS);
     set_current_from_steppers_for_axis(ALL_AXES);
 
     switch (source_) {
-    /*
-    * triggered by power-loss, turn off some power domains
-    * before save env and write flash, will run through
-    * next case to save env and write flash
-    */
-    case QS_SOURCE_POWER_LOSS:
-      TurnOffPower();
+      /*
+      * triggered by power-loss, turn off some power domains
+      * before save env and write flash, will run through
+      * next case to save env and write flash
+      */
+      case QS_SOURCE_POWER_LOSS:
+        TurnOffPower();
 
-    case QS_SOURCE_SECURITY:
-      HandleProtection();
+      case QS_SOURCE_SECURITY:
+        HandleProtection();
 
-    /*
-    * triggered by PAUSE, just save env and switch to next state
-    */
-    case QS_SOURCE_PAUSE:
-      if (blk)
-        pl_recovery.SaveCmdLine(blk->filePos);
+      /*
+      * triggered by PAUSE, just save env and switch to next state
+      */
+      case QS_SOURCE_PAUSE:
+        if (blk) {
+          pl_recovery.SaveCmdLine(blk->filePos);
+          Stepper::file_pos_rb.push(blk->filePos);
+        }
 
-      // if power-loss appear atfer finishing PAUSE, won't save env again
-      if (systemservice.GetCurrentStatus() != SYSTAT_PAUSE_FINISH)
-        pl_recovery.SaveEnv();
+        // if power-loss appear atfer finishing PAUSE, won't save env again
+        if (systemservice.GetCurrentStatus() != SYSTAT_PAUSE_FINISH)
+          pl_recovery.SaveEnv();
 
-      // write flash only power-loss appear
-      if (source_ == QS_SOURCE_POWER_LOSS) {
-        pl_recovery.WriteFlash();
-        wrote_flash_ = true;
-      }
-      break;
+        // write flash only power-loss appear
+        if (source_ == QS_SOURCE_POWER_LOSS) {
+          pl_recovery.WriteFlash();
+          wrote_flash_ = true;
+        }
+        break;
 
-    default:
-      break;
+      default:
+        break;
     }
 
     /* to make sure block buffer is cleaned before QS_STA_STOPPED / QS_STA_SAVED_ENV
@@ -160,6 +163,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     state_ = QS_STA_CLEAN_MOVES;
     ret = true;
     break;
+  }
 
   case QS_STA_CLEAN_MOVES:
     switch(source_) {
@@ -247,7 +251,8 @@ void QuickStopService::Park() {
       // if we are not in power loss, retrace E quickly
       // 747 log
       LOG_I("Parking Z\n");
-      move_to_limited_z(Z_MAX_POS, 20);
+      // move_to_limited_z(Z_MAX_POS, 20);
+      move_to_limited_z(current_position[Z_AXIS] + 5, 20);
     }
 
     // move X to max position of home dir
@@ -388,6 +393,11 @@ void QuickStopService::Process() {
         LOGICAL_Y_POSITION(current_position[Y_AXIS]), LOGICAL_Z_POSITION(current_position[Z_AXIS]), current_position[E_AXIS]);
   }
 
+  // idle() will get new command during parking, clean again
+  clear_command_queue();
+  clear_hmi_gcode_queue();
+  Planner::clear_block_buffer();
+
   if (source_ == QS_SOURCE_STOP_BUTTON) {
     LOG_I("Trigger emergency stop!\n");
     EmergencyStop();
@@ -408,10 +418,6 @@ void QuickStopService::Process() {
     WatchDogInit();
     while (1);
   }
-
-  // idle() will get new command during parking, clean again
-  clear_command_queue();
-  clear_hmi_gcode_queue();
 
   // tell system controller we have parked
   systemservice.CallbackPostQS(source_);

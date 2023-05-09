@@ -250,6 +250,7 @@ class Stepper {
     static uint32_t wait_sif_countdown;
     static struct StepTimeDir step_time_dir;
     static circular_buffer<struct step_runout> step_runout_rb;
+    static circular_buffer<uint32_t> file_pos_rb;
 
     #if ENABLED(DEBUG_ISR_LATENCY)
       static uint16_t pre_isr_ticks;

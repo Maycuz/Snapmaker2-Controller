@@ -316,7 +316,7 @@ void motion_info_log(void) {
   }
 
   static uint32_t _4_last_milliseconds = 0;
-  if (ELAPSED(millis(), _4_last_milliseconds+1000)) {
+  if (ELAPSED(millis(), _4_last_milliseconds+10)) {
     _4_last_milliseconds = millis();
     // if (planner.step_generating && steps_seq.getBufMilliseconds() < 15.0) {
     //   LOG_I("%.1f\n", steps_seq.getBufMilliseconds());
@@ -338,6 +338,11 @@ void motion_info_log(void) {
     //   );
     // }
     // LOG_I("EDA %f\n", axis_mng.e_sp->delta_e);
+
+    uint32_t file_pos;
+    if (Stepper::file_pos_rb.pop(file_pos)) {
+      LOG_I("### Pause file position: %u\n", file_pos);
+    }
   }
 
 }

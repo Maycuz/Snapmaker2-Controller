@@ -6,9 +6,9 @@
 
 class TimeGenFunc {
 public:
-  const static uint32_t TGF_VALID_FLAG = 1<<0;
+  const static uint32_t TGF_STEP_FLAG = 1<<0;
   const static uint32_t TGF_SYNC_FLAG = 1<<1;
-  const static uint32_t TGF_BLOCK_SYNC_FLAG = 1<<2;
+  const static uint32_t TGF_FILE_POS_SYNC_FLAG = 1<<2;
 
 public:
   uint32_t flag;

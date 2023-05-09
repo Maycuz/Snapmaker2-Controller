@@ -1844,7 +1844,7 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
           current_line_ = 0;
         }
         // 747 debug log
-        LOG_I("gcode pack start get %u\n", current_line_);
+        LOG_I("#### gcode pack start get %u\n", current_line_);
         gocde_pack_start_line(current_line_);
         SNAP_DEBUG_SET_GCODE_LINE(current_line_);
         LOG_I("RESUME over\n");

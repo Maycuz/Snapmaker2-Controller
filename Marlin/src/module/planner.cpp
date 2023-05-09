@@ -104,6 +104,7 @@
 
 Planner planner;
 
+bool Planner::req_clear_block_flag = false;
 struct planner_schedule_info planner_sch_info;
 
   // public:
@@ -117,7 +118,7 @@ volatile uint8_t Planner::block_buffer_head,    // Index of the next block to be
                  Planner::block_buffer_planned, // Index of the optimally planned block
                  Planner::block_buffer_tail;    // Index of the busy block, if any
 uint16_t Planner::cleaning_buffer_counter;      // A counter to disable queuing of blocks
-uint8_t Planner::delay_before_delivering;       // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
+uint16_t Planner::delay_before_delivering;       // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
 bool Planner::step_generating = false;
 
 
@@ -1177,7 +1178,35 @@ void Planner::recalculate() {
   recalculate_trapezoids();
 }
 
+bool Planner::req_clear_block() {
+  uint32_t start_time = millis();
 
+  while(PENDING(millis(), start_time + 100) || req_clear_block_flag){
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  if (req_clear_block_flag) return false;
+
+  start_time = millis();
+  req_clear_block_flag = true;
+  while(PENDING(millis(), start_time + 100) || req_clear_block_flag){
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  if (req_clear_block_flag)
+    return false;
+  else
+    return true;
+}
+
+void Planner::do_block_clear() {
+  if (req_clear_block_flag) {
+    clear_block_buffer();
+    delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
+    req_clear_block_flag = false;
+    LOG_I("Block clear done\n");
+  }
+}
 
 bool Planner::has_motion_queue() {
   if (xTaskGetCurrentTaskHandle() == sm2_handle->planner) {
@@ -1258,13 +1287,9 @@ void Planner::shaped_loop() {
   axis_mng.loop();
 
   if (axis_mng.reqAbort) {
-    clear_block_buffer();
-    delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
+    bt = nullptr;
     axis_mng.abort();
     step_generating = false;
-    LOG_I("Adding a empty move after abort\r\n");
-    move_queue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
-    axis_mng.prepare(move_queue.move_tail);
     axis_mng.reqAbort = false;
   }
 

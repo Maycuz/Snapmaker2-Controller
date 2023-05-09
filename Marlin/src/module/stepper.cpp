@@ -140,6 +140,7 @@ bool Stepper::sif_valid = false;
 uint32_t Stepper::wait_sif_countdown;
 struct StepTimeDir Stepper::step_time_dir;
 circular_buffer<struct step_runout> Stepper::step_runout_rb;
+circular_buffer<uint32_t> Stepper::file_pos_rb;
 
 uint8_t axis_to_port[X_TO_E] = DEFAULT_AXIS_TO_PORT;
 // private:
@@ -1361,9 +1362,7 @@ HAL_STEP_TIMER_ISR() {
 
 
 void Stepper::ts_isr() {
-
 __start:
-
   #ifdef SHAPER_LOG_ENABLE
   HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(HAL_TIMER_TYPE_MAX));
   return;
@@ -1417,7 +1416,7 @@ __start:
   #endif
 
   // If we must abort the current block, do so!
-  if (abort_current_block || !Running || axis_mng.reqAbort) {
+  if (abort_current_block || !Running) {
     axis_did_move = 0;
     abort_current_block = false;
     sif_valid = false;
@@ -1426,22 +1425,14 @@ __start:
     return;
   }
 
+  if (axis_mng.reqAbort) {
+    HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
+    return;
+  }
+
   int fall_edge_axis = -1;
   if (sif_valid) {
     if (step_time_dir.out_step) {
-      // Set direction and move bit
-      axis_did_move = step_time_dir.move_bits;
-      if (step_time_dir.dir) {
-        CBI(current_direction_bits, step_time_dir.axis);
-      }
-      else {
-        SBI(current_direction_bits, step_time_dir.axis);
-      }
-      if (current_direction_bits != last_direction_bits) {
-        last_direction_bits = current_direction_bits;
-        set_directions();
-      }
-
       fall_edge_axis = step_time_dir.axis;
       if (X_AXIS == step_time_dir.axis) {
         PULSE_START(X);
@@ -1509,6 +1500,21 @@ __start:
       }
     }
 
+    if (step_time_dir.out_step) {
+      // Set direction and move bit
+      axis_did_move = step_time_dir.move_bits;
+      if (step_time_dir.dir) {
+        CBI(current_direction_bits, step_time_dir.axis);
+      }
+      else {
+        SBI(current_direction_bits, step_time_dir.axis);
+      }
+      if (current_direction_bits != last_direction_bits) {
+        last_direction_bits = current_direction_bits;
+        set_directions();
+      }
+    }
+
     // TODO:
     // 1) continue short pluse???
     // 2) HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv)) or HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(step_time_dir.itv) + cur_tick);
@@ -1543,7 +1549,7 @@ __start:
       else if(E_AXIS == fall_edge_axis) {
         PULSE_STOP(E);
       }
-      // timer_set_count(STEP_TIMER_DEV, hal_timer_t(0));
+      timer_set_count(STEP_TIMER_DEV, hal_timer_t(0));
       goto __start;
     }
   }
@@ -1555,22 +1561,22 @@ __start:
     HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
     if (last_got_step) {
       last_got_step = false;
-      struct motion_info mi;
-      mi.tag[0] = 'S'; mi.tag[1] = 'T'; mi.tag[2] = 'P'; mi.tag[3] = '\0';
-      mi.sys_time_ms = millis();
-      mi.block_count = planner.movesplanned();
-      mi.block_planned_count = planner.optimally_planned_movesplanned();
-      mi.move_count = move_queue.getMoveSize();
-      mi.step_count = steps_seq.count();
-      mi.step_prepare_time = steps_seq.getBufMilliseconds();
-      mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
-      mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
-      mi.step_use_rate = steps_seq.useRate();
-      mi.move_head_tick = move_queue.moves_head_tick;
-      mi.move_tail_tick = move_queue.moves_tail_tick;
-      mi.move_can_print_tick = move_queue.can_print_head_tick;
-      mi.current_print_tick = axis_mng.cur_print_tick;
-      axis_mng.motion_info_rb.push(mi);
+      // struct motion_info mi;
+      // mi.tag[0] = 'S'; mi.tag[1] = 'T'; mi.tag[2] = 'P'; mi.tag[3] = '\0';
+      // mi.sys_time_ms = millis();
+      // mi.block_count = planner.movesplanned();
+      // mi.block_planned_count = planner.optimally_planned_movesplanned();
+      // mi.move_count = move_queue.getMoveSize();
+      // mi.step_count = steps_seq.count();
+      // mi.step_prepare_time = steps_seq.getBufMilliseconds();
+      // mi.block_use_rate = 100.0 * planner.movesplanned() / BLOCK_BUFFER_SIZE;
+      // mi.move_use_rate = 100.0 * move_queue.getMoveSize() / MOVE_SIZE;
+      // mi.step_use_rate = steps_seq.useRate();
+      // mi.move_head_tick = move_queue.moves_head_tick;
+      // mi.move_tail_tick = move_queue.moves_tail_tick;
+      // mi.move_can_print_tick = move_queue.can_print_head_tick;
+      // mi.current_print_tick = axis_mng.cur_print_tick;
+      // axis_mng.motion_info_rb.push(mi);
     }
     // #ifdef DEBUG_IO
     // WRITE(DEBUG_IO, 0);

@@ -373,7 +373,6 @@ void AxisMng::loop(void) {
   if (fabs(mq->last_mq_pos[B_AXIS]) > (B_RESET_VALUE * planner.settings.axis_steps_per_mm[B_AXIS])) {
     mq->reqResetBAxis();
   }
-
 }
 
 bool AxisMng::planner_sync(void) {
@@ -570,13 +569,19 @@ bool AxisMng::tgfValid() {
 }
 
 void AxisMng::abort() {
-  // LOG_I("Axes mng aborted\r\n");
+  LOG_I("Axes mng aborted\n");
+  if (!Planner::req_clear_block()) {
+    LOG_E("req block clear failed\n");
+  }
   steps_seq.reset();
   steps_flag.reset();
   mq->reset();
   LOOP_SHAPER_AXES(i) {
     axes[i].reset();
   }
+  LOG_I("Adding a empty move after abort\n");
+  move_queue.addEmptyMove(EMPTY_MOVE_TIME_TICK);
+  axis_mng.prepare(move_queue.move_tail);
 }
 
 void AxisMng::updateOldestPluesTick() {

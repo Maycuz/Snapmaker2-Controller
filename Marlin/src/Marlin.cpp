@@ -870,6 +870,8 @@ void idle(
   #if ENABLED(PRUSA_MMU2)
     mmu2.mmuLoop();
   #endif
+
+  Planner::do_block_clear();
 }
 
 /**

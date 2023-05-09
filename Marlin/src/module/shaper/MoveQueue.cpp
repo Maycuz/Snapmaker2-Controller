@@ -221,6 +221,7 @@ void MoveQueue::addEmptyMove(uint32_t time) {
   LOG_I("Empty move time tick %u\n", time);
   Move * am = addMove(0, 0, 0, 0, ZERO_AXIS_R, time);
   am->laser_or_cnc_pwr = 0;
+  am->file_pos = INVALID_FILE_POS;
 }
 
 void MoveQueue::addSyncMove(int32_t *sync_pos) {
