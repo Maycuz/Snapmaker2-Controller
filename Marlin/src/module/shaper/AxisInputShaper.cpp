@@ -469,7 +469,6 @@ bool AxisMng::endisable_shaper(bool endisable) {
     return false;
 
   abort();
-
   LOG_I("All axis %s\n", endisable ? "enbale" : "disable");
   LOOP_SHAPER_AXES(i) {
     if (endisable)
@@ -508,18 +507,11 @@ bool AxisMng::reset_shaper(void) {
 }
 
 void AxisMng::log_xy_shpaer(void) {
-  // SERIAL_ECHOPAIR("X type: ", input_shaper_type_name[int(x_sp->type)]);
-  // SERIAL_ECHOPAIR(" frequency: ", x_sp->frequency);
-  // SERIAL_ECHOLNPAIR(" zeta: ", x_sp->zeta);
-  // SERIAL_ECHOPAIR("Y type: ", input_shaper_type_name[int(y_sp->type)]);
-  // SERIAL_ECHOPAIR(" frequency: ", y_sp->frequency);
-  // SERIAL_ECHOLNPAIR(" zeta: ", y_sp->zeta);
   LOG_I("X type: %s, frequency: %lf, zeta: %lf\n", input_shaper_type_name[int(x_sp->type)], x_sp->frequency, x_sp->zeta);
   LOG_I("Y type: %s, frequency: %lf, zeta: %lf\n", input_shaper_type_name[int(y_sp->type)], y_sp->frequency, y_sp->zeta);
 }
 
 bool AxisMng::prepare(uint8_t m_idx) {
-
   uint32_t sw;
   max_shaper_window_tick = 0;
   max_shaper_window_right_delta_tick = 0;
@@ -570,9 +562,6 @@ bool AxisMng::tgfValid() {
 
 void AxisMng::abort() {
   LOG_I("Axes mng aborted\n");
-  if (!Planner::req_clear_block()) {
-    LOG_E("req block clear failed\n");
-  }
   steps_seq.reset();
   steps_flag.reset();
   mq->reset();
@@ -587,13 +576,10 @@ void AxisMng::abort() {
 void AxisMng::updateOldestPluesTick() {
   if (!is_init)
     return;
-  // uint32_t shaper_window_tick = axes[0].shaper_window.tick;
-  // uint32_t left_plues_tick = shaper_window_tick + LROUND((-axes[0].left_delta * ms2tick));
+
   uint32_t left_plues_tick = axes[0].print_tick + LROUND((-axes[0].left_delta * ms2tick));
   uint32_t opt = left_plues_tick;
   LOOP_SHAPER_AXES(i) {
-    // shaper_window_tick = axes[i].shaper_window.tick;
-    // left_plues_tick = shaper_window_tick + LROUND((-axes[i].left_delta * ms2tick));
     left_plues_tick = axes[i].print_tick + LROUND((-axes[i].left_delta * ms2tick));
     if (PENDING(left_plues_tick, opt)) {
       opt = left_plues_tick;
@@ -606,7 +592,6 @@ bool AxisMng::req_endisable_shaper(bool endisable) {
   uint32_t wait;
 
   planner.synchronize();
-
   wait = 100;
   while(req_endisable_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
   if (req_endisable_shaper_flag) {
@@ -637,7 +622,6 @@ bool AxisMng::req_update_shaper(void) {
   uint32_t wait;
 
   planner.synchronize();
-
   wait = 100;
   while(req_update_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
   if (req_update_shaper_flag) {
@@ -667,7 +651,6 @@ bool AxisMng::req_reset_shaper(void) {
   uint32_t wait;
 
   planner.synchronize();
-
   wait = 100;
   while(req_reset_shaper_flag && wait--) vTaskDelay(pdMS_TO_TICKS(10));
   if (req_reset_shaper_flag) {

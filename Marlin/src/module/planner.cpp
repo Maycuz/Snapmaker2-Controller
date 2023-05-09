@@ -1287,6 +1287,9 @@ void Planner::shaped_loop() {
   axis_mng.loop();
 
   if (axis_mng.reqAbort) {
+    if (!Planner::req_clear_block()) {
+      LOG_E("req block clear failed\n");
+    }
     bt = nullptr;
     axis_mng.abort();
     step_generating = false;
