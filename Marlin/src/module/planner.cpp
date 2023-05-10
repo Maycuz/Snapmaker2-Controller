@@ -1282,8 +1282,8 @@ void Planner::shaped_loop() {
   axis_mng.updateOldestPluesTick();
   move_queue.moveTailForward(axis_mng.oldest_plues_tick);
 
-  if (genStep())
-    has_gen_steps = true;
+  // if (genStep())
+  //   has_gen_steps = true;
 
   axis_mng.loop();
 
@@ -1297,42 +1297,70 @@ void Planner::shaped_loop() {
     axis_mng.reqAbort = false;
   }
 
-  do {
-    block_num = movesplanned();
-    if (!bt && block_num) {
-      // Have no more optimal block
-      if (block_buffer_nonbusy == block_buffer_planned) {
-        // Steps will runout in a few millisecond, just take this block. If 5 millisecond can product new steps?
-        if (steps_seq.getBufMilliseconds() < 20) {
-          bt = get_current_block();
-        }
-      }
-      // Just take this block as this block has been optimaled.
-      else {
+  block_num = movesplanned();
+  if (!bt && block_num) {
+    // Have no more optimal block
+    if (block_buffer_nonbusy == block_buffer_planned) {
+      // Steps will runout in a few millisecond, just take this block. If 5 millisecond can product new steps?
+      if (steps_seq.getBufMilliseconds() < 20) {
         bt = get_current_block();
       }
     }
-
-    if (bt) {
-      axis_mng.updateOldestPluesTick();
-      move_queue.moveTailForward(axis_mng.oldest_plues_tick);
-
-      if (move_queue.genMoves(bt)) {
-        discard_current_block();
-        bt = nullptr;
-        step_generating = true;
-        #ifdef SHAPER_LOG_ENABLE
-        move_queue.log();
-        #endif
-      }
-      else {
-        break;
-      }
-    }
+    // Just take this block as this block has been optimaled.
     else {
-      break;
+      bt = get_current_block();
     }
-  } while(steps_seq.getBufMilliseconds() > 5);
+  }
+
+  if (bt) {
+    axis_mng.updateOldestPluesTick();
+    move_queue.moveTailForward(axis_mng.oldest_plues_tick);
+    if (move_queue.genMoves(bt)) {
+      discard_current_block();
+      bt = nullptr;
+      step_generating = true;
+      #ifdef SHAPER_LOG_ENABLE
+      move_queue.log();
+      #endif
+    }
+  }
+
+  // do {
+  //   block_num = movesplanned();
+  //   if (!bt && block_num) {
+  //     // Have no more optimal block
+  //     if (block_buffer_nonbusy == block_buffer_planned) {
+  //       // Steps will runout in a few millisecond, just take this block. If 5 millisecond can product new steps?
+  //       if (steps_seq.getBufMilliseconds() < 20) {
+  //         bt = get_current_block();
+  //       }
+  //     }
+  //     // Just take this block as this block has been optimaled.
+  //     else {
+  //       bt = get_current_block();
+  //     }
+  //   }
+
+  //   if (bt) {
+  //     axis_mng.updateOldestPluesTick();
+  //     move_queue.moveTailForward(axis_mng.oldest_plues_tick);
+
+  //     if (move_queue.genMoves(bt)) {
+  //       discard_current_block();
+  //       bt = nullptr;
+  //       step_generating = true;
+  //       #ifdef SHAPER_LOG_ENABLE
+  //       move_queue.log();
+  //       #endif
+  //     }
+  //     else {
+  //       break;
+  //     }
+  //   }
+  //   else {
+  //     break;
+  //   }
+  // } while(steps_seq.getBufMilliseconds() > 5);
 
   if (genStep())
     has_gen_steps = true;
@@ -1383,7 +1411,7 @@ void Planner::shaped_loop() {
     uint32_t prepare_time_ms = steps_seq.getBufMilliseconds();
     if (prepare_time_ms > 5) {
       NOMORE(prepare_time_ms, 50u);
-      vTaskDelay(pdMS_TO_TICKS(prepare_time_ms/2));
+      vTaskDelay(pdMS_TO_TICKS(prepare_time_ms - 5));
     }
     else {
       if (has_gen_steps && block_num) {
@@ -1399,7 +1427,6 @@ void Planner::shaped_loop() {
   else {
     vTaskDelay(pdMS_TO_TICKS(1));
   }
-
 }
 
 
