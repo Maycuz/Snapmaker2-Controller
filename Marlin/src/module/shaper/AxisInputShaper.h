@@ -22,8 +22,8 @@
 #define SP_DEFT_FREQ                  (50)
 #define SP_DEFT_ZETA                  (0.1)
 #define CALC_OF_BINOMIAL(tgf)         ((tgf.coef_a * tgf.time_wind + tgf.coef_b) * tgf.time_wind)
-#define E_RESET_VALUE                 (50.0)
-#define B_RESET_VALUE                 (50.0)
+#define E_RESET_VALUE                 (1000.0)
+#define B_RESET_VALUE                 (1000.0)
 
 
 enum class InputShaperType : int

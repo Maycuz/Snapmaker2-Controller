@@ -1450,6 +1450,10 @@ __start:
         PULSE_START(E);
         PULSE_PREP(E);
       }
+      else if(B_AXIS == step_time_dir.axis) {
+        PULSE_START(B);
+        PULSE_PREP(B);
+      }
     }
 
     if(steps_seq.popQueue(&step_time_dir)) {
@@ -1534,6 +1538,9 @@ __start:
       else if(E_AXIS == fall_edge_axis) {
         PULSE_STOP(E);
       }
+      else if(B_AXIS == fall_edge_axis) {
+        PULSE_STOP(B);
+      }
     }
     else {
       // TODO: shoule clear the step timer??
@@ -1548,6 +1555,9 @@ __start:
       }
       else if(E_AXIS == fall_edge_axis) {
         PULSE_STOP(E);
+      }
+      else if(B_AXIS == fall_edge_axis) {
+        PULSE_STOP(B);
       }
       timer_set_count(STEP_TIMER_DEV, hal_timer_t(0));
       goto __start;
