@@ -469,6 +469,12 @@ bool moveShaperWindowToNext() {
       gs.valid = true;
     }
 
+    // Update print tick for E when there is just a lot of file sync for E
+    // and the print tick will not update to the right time tick.
+    if (gs.valid && !gs.out_step) {
+      print_tick = gs.tick;
+    }
+
     return gs.valid;
   }
 
