@@ -1588,6 +1588,23 @@ __start:
       // mi.current_print_tick = axis_mng.cur_print_tick;
       // axis_mng.motion_info_rb.push(mi);
     }
+
+    if (X_AXIS == fall_edge_axis) {
+      PULSE_STOP(X);
+    }
+    else if(Y_AXIS == fall_edge_axis) {
+      PULSE_STOP(Y);
+    }
+    else if(Z_AXIS == fall_edge_axis) {
+      PULSE_STOP(Z);
+    }
+    else if(E_AXIS == fall_edge_axis) {
+      PULSE_STOP(E);
+    }
+    else if(B_AXIS == fall_edge_axis) {
+      PULSE_STOP(B);
+    }
+
     // #ifdef DEBUG_IO
     // WRITE(DEBUG_IO, 0);
     // #endif
