@@ -283,10 +283,6 @@ void motion_info_log(void) {
     }
   }
 
-  // LOG_I("block file pos %u\n", stepper.pause_block.filePos);
-  // LOG_I("stepper pos: %d %d %d %d\n",
-  //   stepper.position(X_AXIS), stepper.position(Y_AXIS), stepper.position(Z_AXIS), stepper.position(E_AXIS));
-
   static uint32_t _2_last_milliseconds = 0;
   if (ELAPSED(millis(), _2_last_milliseconds+10)) {
     _2_last_milliseconds = millis();
@@ -338,6 +334,14 @@ void motion_info_log(void) {
     //   );
     // }
     // LOG_I("EDA %f\n", axis_mng.e_sp->delta_e);
+
+    extern uint32_t statistics_slowdown_cnt;
+    static uint32_t last_statistics_slowdown_cnt;
+
+    if (last_statistics_slowdown_cnt != statistics_slowdown_cnt) {
+      LOG_I("statistics_slowdown_cnt %d\r\n", statistics_slowdown_cnt);
+      last_statistics_slowdown_cnt = statistics_slowdown_cnt;
+    }
 
     uint32_t file_pos;
     if (Stepper::file_pos_rb.pop(file_pos)) {

@@ -104,6 +104,7 @@
 
 Planner planner;
 
+uint32_t statistics_slowdown_cnt = 0;
 bool Planner::req_clear_block_flag = false;
 struct planner_schedule_info planner_sch_info;
 
@@ -2434,6 +2435,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
         #if defined(XY_FREQUENCY_LIMIT) || ENABLED(ULTRA_LCD)
           segment_time_us = nst;
         #endif
+        statistics_slowdown_cnt++;
       }
     }
   #endif

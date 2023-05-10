@@ -991,3 +991,4 @@ FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != bloc
 
 extern Planner planner;
 extern struct planner_schedule_info planner_sch_info;
+extern uint32_t statistics_slowdown_cnt;
