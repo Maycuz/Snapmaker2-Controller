@@ -240,9 +240,7 @@ bool moveShaperWindowToNext() {
       }
 
       if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_RESET_E_SHAPER_POSITION) {
-        shaper_window.lpos = 0.0;
-        print_pos = 0.0;
-        delta_e = 0.0;
+        delta_e = print_pos = shaper_window.lpos = shaper_window.pos = 0.0;
         LOG_I("Shaper E position reset\n");
       }
     }
