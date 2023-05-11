@@ -404,13 +404,13 @@ bool moveShaperWindowToNext() {
 
   FORCE_INLINE bool getTimeFromTgf(TimeGenFunc &tgf, struct genStep &gs) {
     gs.valid = false;
+    gs.out_step = false;
     gs.file_pos = file_pos;
     gs.sync_pos = sync_pos;
 
     // A sync, no step output
     if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
       gs.tick = sync_tick;
-      gs.out_step = false;
       gs.valid = true;
       sync_pos = INVALID_SYNC_POS;
       tgf.flag &= ~(TimeGenFunc::TGF_SYNC_FLAG);
@@ -420,7 +420,6 @@ bool moveShaperWindowToNext() {
     // A file position sync
     if (tgf.flag & TimeGenFunc::TGF_FILE_POS_SYNC_FLAG) {
       gs.tick = block_sync_tick;
-      gs.out_step = false;
       gs.valid = true;
       file_pos = INVALID_FILE_POS;
       tgf.flag &= ~(TimeGenFunc::TGF_FILE_POS_SYNC_FLAG);
@@ -438,6 +437,11 @@ bool moveShaperWindowToNext() {
           LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
           #endif
           tgf.flag &= ~(TimeGenFunc::TGF_STEP_FLAG);
+          // Update print tick for E when there is just a lot of file sync for E
+          // and the print tick will not update to the right time tick.
+          if (gs.valid) {
+            print_tick = shaper_window.tick;
+          }
           return gs.valid;
         }
       }
@@ -449,6 +453,11 @@ bool moveShaperWindowToNext() {
           LOG_I("TGF end: axis %d, PP %f,  SP %f tgf.end_pos %f(%d)\r\n", axis, np, ns, tgf.end_pos, tgf.monotone);
           #endif
           tgf.flag &= ~(TimeGenFunc::TGF_STEP_FLAG);
+          // Update print tick for E when there is just a lot of file sync for E
+          // and the print tick will not update to the right time tick.
+          if (gs.valid) {
+            print_tick = shaper_window.tick;
+          }
           return gs.valid;
         }
       }
@@ -521,34 +530,32 @@ bool moveShaperWindowToNext() {
   }
 
   bool getStep(void) {
-    if (g1.valid) {
+    #ifndef ENABLE_DIR_ELIMINATE
+    if (!g1.valid) {
+      return genNextStep(g1);
+    }
+    else {
       return true;
     }
-    #ifndef ENABLE_DIR_ELIMINATE
+    #else
+    if (g1.valid) {
+      if (!g2.valid) {
+        genNextStep(g2);
+      }
+    }
     else {
-      genNextStep(g1);
-      if (g1.valid) {
-        return true;
+      if (g2.valid) {
+        g1 = g2;
+        g2.valid = false;
+        genNextStep(g2);
       }
       else {
-        return false;
+        genNextStep(g1);
+        if (g1.valid) {
+          genNextStep(g2);
+        }
       }
     }
-    #endif
-
-    if (g2.valid) {
-      g1 = g2;
-    }
-
-    if (!g1.valid) {
-      genNextStep(g1);
-      if (!g1.valid) {
-        return false;
-      }
-    }
-
-    // To here g1 has got step
-    genNextStep(g2);
 
     if (g1.valid && g2.valid && (g1.dir != g2.dir) && (g1.out_step && g2.out_step)) {
       g1.out_step = g2.out_step = false;
@@ -557,7 +564,8 @@ bool moveShaperWindowToNext() {
       #endif
     }
 
-    return true;
+    return g1.valid;
+    #endif
   }
 };
 
