@@ -194,7 +194,9 @@ Move *MoveQueue::addMove(float start_v, float end_v, float accelerate, float dis
   moves_head_tick = move.end_tick;
   can_print_head_tick = moves_head_tick - max_shape_window_right_delta_tick ;
 
-  if (req_E_reset) {
+  // Distance must > EPSILON, as advoiding do
+  // reset and G92 position at the same time.
+  if (req_E_reset && (distance > EPSILON)) {
     last_mq_pos[E_AXIS] = 0.0;
     move.flag |= BLOCK_FLAG_RESET_E_SHAPER_POSITION;
     req_E_reset = false;
