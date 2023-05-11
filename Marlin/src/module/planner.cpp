@@ -1302,7 +1302,7 @@ void Planner::shaped_loop() {
     // Have no more optimal block
     if (block_buffer_nonbusy == block_buffer_planned) {
       // Steps will runout in a few millisecond, just take this block. If 5 millisecond can product new steps?
-      if (steps_seq.getBufMilliseconds() < 20) {
+      if (steps_seq.getBufMilliseconds() < 5) {
         bt = get_current_block();
       }
     }
@@ -1340,11 +1340,9 @@ void Planner::shaped_loop() {
   //       bt = get_current_block();
   //     }
   //   }
-
   //   if (bt) {
   //     axis_mng.updateOldestPluesTick();
   //     move_queue.moveTailForward(axis_mng.oldest_plues_tick);
-
   //     if (move_queue.genMoves(bt)) {
   //       discard_current_block();
   //       bt = nullptr;
