@@ -295,20 +295,20 @@ void motion_info_log(void) {
   static uint32_t _3_last_milliseconds = 0;
   if (ELAPSED(millis(), _3_last_milliseconds+10)) {
     _3_last_milliseconds = millis();
-    struct motion_info mi;
-    if (axis_mng.motion_info_rb.pop(mi)) {
-      LOG_I("\n%d: ====== motion info from %s ======\n", mi.sys_time_ms, mi.tag);
-      LOG_I("block count: %u, optimally planned: %u\n", mi.block_count, mi.block_planned_count);
-      LOG_I("move count and use rate: %u,\t%.1f\n", mi.move_count, mi.move_use_rate);
-      LOG_I("steps count and use rate: %u,\t%.1f\n", mi.step_count, mi.step_use_rate);
-      float msp_ms = (float)(mi.move_head_tick - mi.move_tail_tick) / STEPPER_TIMER_TICKS_PER_MS;
-      float mmsp_ms = (float)(mi.move_head_tick - mi.current_print_tick) / STEPPER_TIMER_TICKS_PER_MS;
-      float mnmsp_ms = (float)(mi.current_print_tick - mi.move_tail_tick) / STEPPER_TIMER_TICKS_PER_MS;
-      LOG_I("move tick: head %u, tail %u, move time spand %fms\n", mi.move_head_tick, mi.move_tail_tick, msp_ms);
-      LOG_I("move motion time spand %f ms, move no motion time spand %f ms\n", mmsp_ms, mnmsp_ms);
-      // LOG_I("move can print tick %u, current print tick %u\n", mmsp_ms, mnmsp_ms);
-      LOG_I("step prepare time(ms): %f\n\n", mi.step_prepare_time);
-    }
+    // struct motion_info mi;
+    // if (axis_mng.motion_info_rb.pop(mi)) {
+    //   LOG_I("\n%d: ====== motion info from %s ======\n", mi.sys_time_ms, mi.tag);
+    //   LOG_I("block count: %u, optimally planned: %u\n", mi.block_count, mi.block_planned_count);
+    //   LOG_I("move count and use rate: %u,\t%.1f\n", mi.move_count, mi.move_use_rate);
+    //   LOG_I("steps count and use rate: %u,\t%.1f\n", mi.step_count, mi.step_use_rate);
+    //   float msp_ms = (float)(mi.move_head_tick - mi.move_tail_tick) / STEPPER_TIMER_TICKS_PER_MS;
+    //   float mmsp_ms = (float)(mi.move_head_tick - mi.current_print_tick) / STEPPER_TIMER_TICKS_PER_MS;
+    //   float mnmsp_ms = (float)(mi.current_print_tick - mi.move_tail_tick) / STEPPER_TIMER_TICKS_PER_MS;
+    //   LOG_I("move tick: head %u, tail %u, move time spand %fms\n", mi.move_head_tick, mi.move_tail_tick, msp_ms);
+    //   LOG_I("move motion time spand %f ms, move no motion time spand %f ms\n", mmsp_ms, mnmsp_ms);
+    //   // LOG_I("move can print tick %u, current print tick %u\n", mmsp_ms, mnmsp_ms);
+    //   LOG_I("step prepare time(ms): %f\n\n", mi.step_prepare_time);
+    // }
   }
 
   static uint32_t _4_last_milliseconds = 0;
