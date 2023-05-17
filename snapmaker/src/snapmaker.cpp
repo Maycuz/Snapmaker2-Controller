@@ -46,8 +46,6 @@
 
 SnapmakerHandle_t sm2_handle;
 
-SemaphoreHandle_t plan_buffer_lock = NULL;
-
 extern void enqueue_hmi_to_marlin();
 
 
@@ -514,11 +512,6 @@ void SnapmakerSetupPost() {
   }
   else {
     LOG_I("Created can event task!\n");
-  }
-
-  plan_buffer_lock = xSemaphoreCreateMutex();
-  if (!plan_buffer_lock) {
-    LOG_E("Can not create plan buffer lock\n");
   }
 
   ret = xTaskCreate((TaskFunction_t)planner_task, "planner_task", PLANNER_TASK_STACK_DEPTH,

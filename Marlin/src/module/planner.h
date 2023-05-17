@@ -51,8 +51,6 @@
   #include "../feature/mixing.h"
 #endif
 
-extern SemaphoreHandle_t plan_buffer_lock;
-
 enum BlockFlagBit : char {
   // Recalculate trapezoids on entry junction. For optimization.
   BLOCK_BIT_RECALCULATE,
