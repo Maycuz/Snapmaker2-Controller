@@ -1461,8 +1461,8 @@ __start:
     }
     else  {
       sif_valid = false;
-      // wait for 100ms seconds
-      wait_sif_countdown = 100;
+      // wait for some milliseconds
+      wait_sif_countdown = 0;
     }
   }
   else {
@@ -1482,8 +1482,8 @@ __start:
         }
         else {
           sif_valid = false;
-          // Re wait for 100ms seconds
-          wait_sif_countdown = 100;
+          // wait for some milliseconds
+          wait_sif_countdown = 0;
         }
       }
     }
