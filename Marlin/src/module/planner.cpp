@@ -2018,9 +2018,7 @@ bool Planner::_buffer_steps(const int32_t (&target)[X_TO_E]
   block_buffer_head = next_buffer_head;
 
   // Recalculate and optimize trapezoidal speed profiles
-  xSemaphoreTake(plan_buffer_lock, portMAX_DELAY);
   recalculate();
-  xSemaphoreGive(plan_buffer_lock);
 
   // Movement successfully queued!
   return true;
