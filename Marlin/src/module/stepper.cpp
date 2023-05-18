@@ -1416,10 +1416,11 @@ __start:
   #endif
 
   // If we must abort the current block, do so!
-  if (abort_current_block || !Running) {
+  if (abort_current_block || !Running || abort_e_moves) {
     axis_did_move = 0;
     abort_current_block = false;
     sif_valid = false;
+    abort_e_moves = false;
     axis_mng.reqAbort = true;
     HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(STEPPER_TIMER_TICKS_PER_MS));
     return;
