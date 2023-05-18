@@ -1320,7 +1320,6 @@ void Planner::shaped_loop() {
       discard_current_block();
       bt = nullptr;
       step_generating = true;
-      err_cnt = 0;
       #ifdef SHAPER_LOG_ENABLE
       move_queue.log();
       #endif
@@ -1329,7 +1328,6 @@ void Planner::shaped_loop() {
       if (drop) {
         discard_current_block();
         bt = nullptr;
-        err_cnt = 0;
         LOG_E("Can not generate move for this block, drop it\n");
       }
     }
