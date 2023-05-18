@@ -9,7 +9,8 @@ struct StepFlagData {
   int         sync_pos;
   uint32_t    file_pos;
   uint16_t    laser_pwr;
-  uint16_t    reserve;
+  char        extruder;
+  uint8_t     reserve;
 };
 
 struct StepTimeDir{
@@ -19,7 +20,8 @@ struct StepTimeDir{
   uint16_t out_step: 1;
   uint16_t sync: 1;
   uint16_t update_file_pos: 1;
-  uint16_t move_bits: 8;
+  uint16_t chg_extruder: 1;
+  uint16_t move_bits: 7;
 };
 
 class StepFlag {

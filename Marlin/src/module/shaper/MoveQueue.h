@@ -30,6 +30,7 @@ public:
   bool use_advance;
   uint32_t file_pos;
   uint16_t laser_or_cnc_pwr;
+  uint8_t extruder;
 
 public:
   void log(uint8_t idx);
@@ -83,6 +84,7 @@ public:
   uint32_t file_pos;
   bool req_E_reset;
   bool req_B_reset;
+  uint8_t extruder = 0;
 };
 
 

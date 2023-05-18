@@ -460,13 +460,12 @@ void Stepper::set_directions() {
     SET_STEP_DIR(B); // B
   #endif
 
-  // 747 DEBUG, allways just for E0
   if (motor_direction(_AXIS(E))) {
-    REV_E_DIR(0);
+    REV_E_DIR(stepper_extruder);
     count_direction[_AXIS(E)] = -1;
   }
   else {
-    NORM_E_DIR(0);
+    NORM_E_DIR(stepper_extruder);
     count_direction[_AXIS(E)] = 1;
   }
 
@@ -1494,7 +1493,7 @@ __start:
     last_got_step = true;
 
     struct StepFlagData flag_data;
-    if ((step_time_dir.sync || step_time_dir.update_file_pos) && steps_flag.popQueue(&flag_data)) {
+    if ((step_time_dir.sync || step_time_dir.update_file_pos || step_time_dir.chg_extruder) && steps_flag.popQueue(&flag_data)) {
       // update file pos
       if (step_time_dir.update_file_pos) {
         pause_block.filePos = flag_data.file_pos;
@@ -1502,6 +1501,13 @@ __start:
       // sync axis pos
       if (step_time_dir.sync) {
         count_position[step_time_dir.axis] = flag_data.sync_pos;
+      }
+      // change extruder
+      if (step_time_dir.chg_extruder) {
+        stepper_extruder = flag_data.extruder;
+        // do something when change extruder
+        last_moved_extruder = stepper_extruder;
+        set_directions();
       }
     }
 

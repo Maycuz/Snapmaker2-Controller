@@ -17,6 +17,7 @@
 #define LOOP_SHAPER_AXES(VAR)         LOOP_S_L_N(VAR, 0, NUM_AXIS)
 #define INVALID_FILE_POS              (0xFFFFFFFF)
 #define INVALID_SYNC_POS              (0x7FFFFFFF)
+#define INVALID_EXTRUDER              (-1)
 #define EMPTY_MOVE_TIME_TICK          (200 * STEPPER_TIMER_TICKS_PER_MS)
 #define SP_DEFT_TYPE                  (InputShaperType::ei)
 #define SP_DEFT_FREQ                  (50)
@@ -92,7 +93,7 @@ struct genStep {
   uint8_t   valid;
   uint8_t   out_step;
   int8_t    dir;
-  uint8_t   reserve;
+  char      extruder;
   uint32_t  tick;
   uint32_t  sync_pos;
   uint32_t  file_pos;
@@ -137,8 +138,10 @@ public:
   uint32_t print_tick;
   uint32_t sync_tick;
   uint32_t block_sync_tick;
+  uint32_t extruder_chg_tick;
   int sync_pos;
   uint32_t file_pos;
+  char target_extruder;
   TimeGenFunc tgf_1, tgf_2;
   struct genStep g1, g2;
   float delta_e;
@@ -239,9 +242,17 @@ bool moveShaperWindowToNext() {
         block_sync_tick = mq->moves[cls_p_m_idx].start_tick;
       }
 
+      // E reset
       if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_RESET_E_SHAPER_POSITION) {
         delta_e = print_pos = shaper_window.lpos = shaper_window.pos = 0.0;
         LOG_I("Shaper E position reset\n");
+      }
+
+      // Change extruder
+      if (mq->moves[cls_p_m_idx].flag & BLOCK_FLAG_CHG_EXTRUDER) {
+        target_extruder = mq->moves[cls_p_m_idx].extruder;
+        extruder_chg_tick = mq->moves[cls_p_m_idx].start_tick;
+        LOG_I("Change extruder to %d\n", target_extruder);
       }
     }
 
@@ -297,20 +308,28 @@ bool moveShaperWindowToNext() {
   }
 
   bool generateShapedFuncParams() {
+    bool ret = false;
     tgf_1.flag = tgf_2.flag = 0;
     tgf_1.coef_a = tgf_coef_a_sum;
 
-    // A sync tgf, no motion, just return
-    if (INVALID_SYNC_POS != sync_pos) {
-      tgf_1.flag |= TimeGenFunc::TGF_SYNC_FLAG;
-      return true;
-    }
+    if (E_AXIS == axis) {
+      // A sync tgf, no motion, just return
+      if (INVALID_SYNC_POS != sync_pos) {
+        tgf_1.flag |= TimeGenFunc::TGF_SYNC_FLAG;
+        return true;
+      }
 
-    // A block file positon sync.
-    bool ret = false;
-    if (INVALID_FILE_POS != file_pos) {
-      tgf_1.flag |= TimeGenFunc::TGF_FILE_POS_SYNC_FLAG;
-      ret = true;
+      // A block file positon sync.
+      if (INVALID_FILE_POS != file_pos) {
+        tgf_1.flag |= TimeGenFunc::TGF_FILE_POS_SYNC_FLAG;
+        ret = true;
+      }
+
+      // Change extruder
+      if (INVALID_EXTRUDER != target_extruder) {
+        tgf_1.flag |= TimeGenFunc::TGF_CHG_EXTRUDER;
+        ret = true;
+      }
     }
 
     float s1 = shaper_window.lpos;
@@ -403,24 +422,39 @@ bool moveShaperWindowToNext() {
   FORCE_INLINE bool getTimeFromTgf(TimeGenFunc &tgf, struct genStep &gs) {
     gs.valid = false;
     gs.out_step = false;
-    gs.file_pos = file_pos;
-    gs.sync_pos = sync_pos;
+    gs.file_pos = INVALID_FILE_POS;
+    gs.sync_pos = INVALID_SYNC_POS;
+    gs.extruder = INVALID_EXTRUDER;
 
     // A sync, no step output
-    if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
-      gs.tick = sync_tick;
-      gs.valid = true;
-      sync_pos = INVALID_SYNC_POS;
-      tgf.flag &= ~(TimeGenFunc::TGF_SYNC_FLAG);
-      return true;
-    }
+    if (E_AXIS == axis) {
+      gs.file_pos = file_pos;
+      gs.sync_pos = sync_pos;
+      gs.extruder = target_extruder;
 
-    // A file position sync
-    if (tgf.flag & TimeGenFunc::TGF_FILE_POS_SYNC_FLAG) {
-      gs.tick = block_sync_tick;
-      gs.valid = true;
-      file_pos = INVALID_FILE_POS;
-      tgf.flag &= ~(TimeGenFunc::TGF_FILE_POS_SYNC_FLAG);
+      if (tgf.flag & TimeGenFunc::TGF_SYNC_FLAG) {
+        gs.tick = sync_tick;
+        gs.valid = true;
+        sync_pos = INVALID_SYNC_POS;
+        tgf.flag &= ~(TimeGenFunc::TGF_SYNC_FLAG);
+        return true;
+      }
+
+      // A file position sync
+      if (tgf.flag & TimeGenFunc::TGF_FILE_POS_SYNC_FLAG) {
+        gs.tick = block_sync_tick;
+        gs.valid = true;
+        file_pos = INVALID_FILE_POS;
+        tgf.flag &= ~(TimeGenFunc::TGF_FILE_POS_SYNC_FLAG);
+      }
+
+      // Change extruder
+      if (tgf.flag & TimeGenFunc::TGF_CHG_EXTRUDER) {
+        gs.tick = extruder_chg_tick;
+        gs.valid = true;
+        target_extruder = INVALID_EXTRUDER;
+        tgf.flag &= ~(TimeGenFunc::TGF_CHG_EXTRUDER);
+      }
     }
 
     // A steps output
@@ -638,6 +672,13 @@ public:
       if (INVALID_FILE_POS != dm->g1.file_pos) {
         step_info.time_dir.update_file_pos = 1;
         step_info.flag_data.file_pos = dm->g1.file_pos;
+      }
+
+      // Change extruder
+      step_info.time_dir.chg_extruder = 0;
+      if (INVALID_EXTRUDER != dm->g1.extruder) {
+        step_info.time_dir.chg_extruder = 1;
+        step_info.flag_data.extruder = dm->g1.extruder;
       }
 
       // Update and clear

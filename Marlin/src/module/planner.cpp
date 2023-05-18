@@ -1233,7 +1233,7 @@ bool Planner::genStep() {
       // LOG_I("PUSH STIF: axis:%u itv:%.3f(ms) dir:%d\r\n", step_info.time_dir.axis, (float)step_info.time_dir.itv * 1000 / STEPPER_TIMER_RATE, step_info.time_dir.dir);
       steps_seq.pushQueue(step_info.time_dir);
       have_gen = true;
-      if (step_info.time_dir.sync || step_info.time_dir.update_file_pos) {
+      if (step_info.time_dir.sync || step_info.time_dir.update_file_pos || step_info.time_dir.chg_extruder) {
         steps_flag.pushQueue(step_info.flag_data);
         // if (!steps_flag.pushQueue(step_info.flag_data)) {
         //   #ifdef SHAPER_LOG_ENABLE

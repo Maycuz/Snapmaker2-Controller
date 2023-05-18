@@ -142,7 +142,15 @@ bool MoveQueue::genMoves(block_t* block) {
     am->delta_v = IS_ZERO(acceleration) ? 0 : K * acceleration;
     am->use_advance = true;
     #endif
+    #if EXTRUDERS > 1
+    if (extruder != block->extruder) {
+      extruder = block->extruder;
+      am->flag |= BLOCK_FLAG_CHG_EXTRUDER;
+      am->extruder = extruder;
+    }
+    #endif
   }
+
   if (plateau > EPSILON) {
     uint32_t plateau_tick = ms2tick * plateau * i_cruise_speed;
     Move * am = addMove(cruise_speed, cruise_speed, 0, plateau, axis_r, plateau_tick);
@@ -157,7 +165,15 @@ bool MoveQueue::genMoves(block_t* block) {
     am->delta_v = 0.0;
     am->use_advance = false;
     #endif
+    #if EXTRUDERS > 1
+    if (extruder != block->extruder) {
+      extruder = block->extruder;
+      am->flag |= BLOCK_FLAG_CHG_EXTRUDER;
+      am->extruder = extruder;
+    }
+    #endif
   }
+
   if (decelDistance > EPSILON) {
     Move * am = addMove(cruise_speed, leave_speed, -acceleration, decelDistance, axis_r, decel_tick);
     am->file_pos = file_pos;
@@ -171,6 +187,13 @@ bool MoveQueue::genMoves(block_t* block) {
     float K = block->use_advance_lead ? planner.extruder_advance_K[active_extruder] * 1000 : 0;
     am->delta_v = IS_ZERO(acceleration) ? 0 : K * (-acceleration);
     am->use_advance = true;
+    #endif
+    #if EXTRUDERS > 1
+    if (extruder != block->extruder) {
+      extruder = block->extruder;
+      am->flag |= BLOCK_FLAG_CHG_EXTRUDER;
+      am->extruder = extruder;
+    }
     #endif
   }
 
