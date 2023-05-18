@@ -1276,7 +1276,7 @@ void Planner::shaped_loop() {
   uint8_t block_num;
   bool has_gen_steps = false;
   static block_t *bt = nullptr;
-  static uint32_t err_cnt = 0;
+  bool drop;
 
   planner_sch_info.entry_cnt++;
 
@@ -1316,7 +1316,7 @@ void Planner::shaped_loop() {
   if (bt) {
     axis_mng.updateOldestPluesTick();
     move_queue.moveTailForward(axis_mng.oldest_plues_tick);
-    if (move_queue.genMoves(bt)) {
+    if (move_queue.genMoves(bt, drop)) {
       discard_current_block();
       bt = nullptr;
       step_generating = true;
@@ -1326,8 +1326,7 @@ void Planner::shaped_loop() {
       #endif
     }
     else {
-      err_cnt++;
-      if (err_cnt > 100) {
+      if (drop) {
         discard_current_block();
         bt = nullptr;
         err_cnt = 0;

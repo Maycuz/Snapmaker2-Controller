@@ -61,7 +61,7 @@ public:
   void addEmptyMove(uint32_t time);
   void addSyncMove(int32_t sync_pos[]);
   Move *addMove(float sv, float ev, float acc, float dist, float axis_r[], uint32_t t);
-  bool genMoves(block_t* block);
+  bool genMoves(block_t* block, bool &drop);
   void moveTailForward(uint32_t print_tick);
   void reqResetEAxis(void);
   void reqResetBAxis(void);

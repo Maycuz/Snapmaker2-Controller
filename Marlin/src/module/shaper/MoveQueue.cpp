@@ -55,7 +55,9 @@ void MoveQueue::reset() {
   }
 }
 
-bool MoveQueue::genMoves(block_t* block) {
+bool MoveQueue::genMoves(block_t* block, bool &drop) {
+  drop = false;
+
   if (getFreeMoveSize() < 3) {
     return false;
   }
@@ -116,6 +118,7 @@ bool MoveQueue::genMoves(block_t* block) {
   }
 
   if ((plateau * i_cruise_speed * ms2tick) > ((0xFFFFFFFF>>1) - 1)) {
+    drop = true;
     LOG_E("This move is too large for uint32_t time expression\n");
     return false;
   }
