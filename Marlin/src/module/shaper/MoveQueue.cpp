@@ -115,6 +115,11 @@ bool MoveQueue::genMoves(block_t* block) {
     plateau = 0;
   }
 
+  if ((plateau * i_cruise_speed * ms2tick) > ((0xFFFFFFFF>>1) - 1)) {
+    LOG_E("This move is too large for uint32_t time expression\n");
+    return false;
+  }
+
   float axis_r[NUM_AXIS];
   axis_r[X_AXIS] = block->axis_r[X_AXIS];
   axis_r[Y_AXIS] = block->axis_r[Y_AXIS];

@@ -1276,6 +1276,7 @@ void Planner::shaped_loop() {
   uint8_t block_num;
   bool has_gen_steps = false;
   static block_t *bt = nullptr;
+  static uint32_t err_cnt = 0;
 
   planner_sch_info.entry_cnt++;
 
@@ -1319,9 +1320,19 @@ void Planner::shaped_loop() {
       discard_current_block();
       bt = nullptr;
       step_generating = true;
+      err_cnt = 0;
       #ifdef SHAPER_LOG_ENABLE
       move_queue.log();
       #endif
+    }
+    else {
+      err_cnt++;
+      if (err_cnt > 100) {
+        discard_current_block();
+        bt = nullptr;
+        err_cnt = 0;
+        LOG_E("Can not generate move for this block, drop it\n");
+      }
     }
   }
 
