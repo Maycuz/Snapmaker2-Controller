@@ -923,10 +923,10 @@ static ErrCode DoEInfinityMove(SSTP_Event_t &event) {
   speed = speed / 1000;
 
   if (event.data[0] == 0) {
-    current_position[E_AXIS] += 100000;
+    current_position[E_AXIS] += 2000;
     line_to_current_position(speed);
   } else if (event.data[0] == 1) {
-    current_position[E_AXIS] -= 100000;
+    current_position[E_AXIS] -= 2000;
     line_to_current_position(speed);
   } else {
     err = E_PARAM;
