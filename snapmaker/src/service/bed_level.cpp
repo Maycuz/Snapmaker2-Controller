@@ -37,8 +37,13 @@
 #define CALIBRATION_PAPER_THICKNESS 0.1
 
 #define INIT_Z_FOR_DUAL_EXTRUDER    (50)  // mm
-#define Z_SPEED_FOR_DUAL_EXTRUDER   (30)  // mm/s
+#define Z_SPEED_FOR_DUAL_EXTRUDER   (15)  // mm/s
 #define XY_SPEED_FOR_DUAL_EXTRUDER  (80)  // mm/s
+
+#define SCALING_FACTOR_X 1.00
+#define SCALING_FACTOR_Y 0.85
+#define X_OFFSET 0
+#define Y_OFFSET 20
 
 BedLevelService levelservice;
 
@@ -683,9 +688,7 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
 
   set_bed_leveling_enabled(false);
 
-  // make sure PROXIMITY_SWITCH is active
-  printer1->ModuleCtrlProximitySwitchPower(1);
-  printer1->SelectProbeSensor(PROBE_SENSOR_PROXIMITY_SWITCH);
+  printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
 
   endstops.enable_z_probe(true);
 
@@ -721,8 +724,8 @@ ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event)
 
   LOG_I("hmi req auto probe %u point, x: %.3f, y: %.3f\n", probe_point_, probe_x, probe_y);
 
-  probe_x -= (DUALEXTRUDER_X_PROBE_OFFSET_FROM_EXTRUDER);                     // Get the nozzle position
-  probe_y -= (DUALEXTRUDER_Y_PROBE_OFFSET_FROM_EXTRUDER);
+  probe_x = (probe_x * SCALING_FACTOR_X) + X_OFFSET;
+  probe_y = (probe_y * SCALING_FACTOR_Y) + Y_OFFSET;
 
   if (probe_point_ == 0) {
     do_blocking_move_to_xy(probe_x, probe_y, XY_SPEED_FOR_DUAL_EXTRUDER);
@@ -731,9 +734,6 @@ ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event)
     do_blocking_move_to_xy(probe_x, probe_y, XY_SPEED_FOR_DUAL_EXTRUDER);
   }
   planner.synchronize();
-
-  // make sure power of probe sensor is turned on
-  printer1->ModuleCtrlProximitySwitchPower(1);
 
   printer1->ModuleCtrlSetExtruderChecking(false);
   z_values_tmp[x_index][y_index]  = probe_pt(probe_x, probe_y, PROBE_PT_RAISE, 0, false);
@@ -780,6 +780,9 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
 
   probe_x     = _GET_MESH_X(x_index);
   probe_y     = _GET_MESH_Y(y_index);
+
+  probe_x = (probe_x * SCALING_FACTOR_X) + X_OFFSET;
+  probe_y = (probe_y * SCALING_FACTOR_Y) + Y_OFFSET;
 
   do_blocking_move_to_xy(probe_x, probe_y, XY_SPEED_FOR_DUAL_EXTRUDER);
   planner.synchronize();
