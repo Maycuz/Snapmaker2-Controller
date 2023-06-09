@@ -2,6 +2,8 @@
 
 **Modified (experimental) firmware that uses the left nozzle of the Dual Extruder module to perform bed leveling on glass bed.**
 
+**Note that the SBR16 linear rail mod is a REQUIREMENT as the nozzle puts 10N of pressure on the build plate when probing (according to Snapmaker staff)**
+
 **Level through HMI (G1029) first and then perform auto-Z calibration.**
 
 **To prevent damage, set manual Z-offset to +0.2 before starting a print job, then adjust down as needed.**
