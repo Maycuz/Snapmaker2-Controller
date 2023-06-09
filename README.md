@@ -1,5 +1,13 @@
 # Snapmaker 2.0 Controller Firmware
 
+**Modified (experimental) firmware that uses the left nozzle of the Dual Extruder module to perform bed leveling on glass bed.**
+
+**Level through HMI (G1029) first and then perform auto-Z calibration.**
+
+**To prevent damage, set manual Z-offset to +0.2 before starting a print job, then adjust down as needed.**
+
+**More info: https://forum.snapmaker.com/t/dual-extruder-bed-leveling-with-nozzle-i-s-o-proximity-sensor/31613/15**
+
 Snapmaker2-Controller is the firmware for Snapmaker 2.0 3-in-1 3D Printers. It's based on the popular [Marlin firmware](http://marlinfw.org/) with optimized FreeRTOS support.
 
 ## Documentation
