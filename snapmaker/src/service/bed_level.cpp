@@ -40,6 +40,8 @@
 #define Z_SPEED_FOR_DUAL_EXTRUDER   (15)  // mm/s
 #define XY_SPEED_FOR_DUAL_EXTRUDER  (80)  // mm/s
 
+// Scaling + offset required if glass bed is smaller than original bed
+// Note: make sure to leave room for the bed clamps too
 #define SCALING_FACTOR_X 1.00
 #define SCALING_FACTOR_Y 0.80
 #define X_OFFSET 0
@@ -690,6 +692,7 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
 
   set_bed_leveling_enabled(false);
 
+  // Set left nozzle as probe. Presumably right nozzle can be used as well.
   printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
 
   endstops.enable_z_probe(true);
